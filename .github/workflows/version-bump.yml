@@ -1,0 +1,95 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: "Version bump type"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-version:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Get current version
+        id: current_version
+        run: |
+          VERSION=$(python -c "from nautobot_network_provisioning import __version__; print(__version__)")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          CURRENT="${{ steps.current_version.outputs.VERSION }}"
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT"
+          MAJOR=${VERSION_PARTS[0]}
+          MINOR=${VERSION_PARTS[1]}
+          PATCH=${VERSION_PARTS[2]}
+          
+          case "${{ github.event.inputs.version_type }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Update version in __init__.py
+        run: |
+          sed -i 's/__version__ = "[^"]*"/__version__ = "${{ steps.new_version.outputs.NEW_VERSION }}"/' nautobot_network_provisioning/__init__.py
+          cat nautobot_network_provisioning/__init__.py | grep __version__
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: bump version to ${{ steps.new_version.outputs.NEW_VERSION }}"
+          title: "chore: Release v${{ steps.new_version.outputs.NEW_VERSION }}"
+          body: |
+            ## Version Bump
+            
+            This PR bumps the version from `${{ steps.current_version.outputs.VERSION }}` to `${{ steps.new_version.outputs.NEW_VERSION }}`.
+            
+            **Version type:** ${{ github.event.inputs.version_type }}
+            
+            ### Checklist
+            - [ ] Changelog has been updated
+            - [ ] All tests pass
+            - [ ] Documentation is up to date
+            
+            After merging, create a tag `v${{ steps.new_version.outputs.NEW_VERSION }}` to trigger a release.
+          branch: release/v${{ steps.new_version.outputs.NEW_VERSION }}
+          delete-branch: true

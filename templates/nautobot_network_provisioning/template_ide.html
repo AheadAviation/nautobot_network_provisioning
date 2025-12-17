@@ -1,0 +1,889 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Template Editor{% if template %} - {{ template.service.name }}{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/default.min.css">
+<style>
+    /* 
+     * Template IDE - Inherits from Nautobot's theme
+     * Uses Bootstrap/Nautobot CSS variables for theme consistency
+     */
+    
+    .template-ide-page {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 56px);
+        background: var(--nb-body-bg, var(--bs-body-bg));
+        margin: -1rem;
+        margin-top: -0.5rem;
+        color: var(--nb-body-color, var(--bs-body-color));
+    }
+    
+    /* Toolbar */
+    .ide-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 1rem;
+        background: var(--nb-card-bg, var(--bs-secondary-bg));
+        border-bottom: 1px solid var(--nb-border-color, var(--bs-border-color));
+        flex-shrink: 0;
+    }
+    
+    .ide-toolbar .ide-title {
+        font-size: 1rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .ide-toolbar .ide-title .mdi {
+        color: var(--nb-primary, var(--bs-primary));
+        font-size: 1.25rem;
+    }
+    
+    .ide-toolbar .btn {
+        font-size: 0.8rem;
+        padding: 0.35rem 0.75rem;
+    }
+    
+    .ide-toolbar .toolbar-divider {
+        width: 1px;
+        height: 24px;
+        background: var(--nb-border-color, var(--bs-border-color));
+    }
+    
+    /* Main layout */
+    .ide-main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+    }
+    
+    /* Editor pane */
+    .ide-editor-pane {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 400px;
+        border-right: 3px solid var(--nb-border-color, var(--bs-border-color));
+    }
+    
+    .pane-header {
+        padding: 0.4rem 0.75rem;
+        background: var(--nb-card-bg, var(--bs-secondary-bg));
+        border-bottom: 1px solid var(--nb-border-color, var(--bs-border-color));
+        color: var(--nb-body-color-secondary, var(--bs-secondary-color));
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .pane-header .pane-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .pane-header .mdi {
+        font-size: 1rem;
+    }
+    
+    /* CodeMirror - theme-aware */
+    .ide-editor-pane .CodeMirror,
+    .ide-context-pane .CodeMirror {
+        flex: 1;
+        height: auto;
+        font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    
+    /* Context section */
+    .ide-context-section {
+        border-top: 1px solid var(--nb-border-color, var(--bs-border-color));
+        display: flex;
+        flex-direction: column;
+        max-height: 280px;
+        min-height: 100px;
+    }
+    
+    .context-tabs {
+        display: flex;
+        background: var(--nb-card-bg, var(--bs-secondary-bg));
+        border-bottom: 1px solid var(--nb-border-color, var(--bs-border-color));
+    }
+    
+    .context-tabs .tab-btn {
+        padding: 0.4rem 1rem;
+        border: none;
+        background: transparent;
+        color: var(--nb-body-color-secondary, var(--bs-secondary-color));
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+    }
+    
+    .context-tabs .tab-btn:hover {
+        color: var(--nb-body-color, var(--bs-body-color));
+    }
+    
+    .context-tabs .tab-btn.active {
+        color: var(--nb-primary, var(--bs-primary));
+        border-bottom-color: var(--nb-primary, var(--bs-primary));
+    }
+    
+    .context-content {
+        flex: 1;
+        display: none;
+        overflow: hidden;
+    }
+    
+    .context-content.active {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* GraphQL query selector controls */
+    .graphql-controls {
+        padding: 0.5rem 0.75rem;
+        background: var(--nb-card-bg, var(--bs-secondary-bg));
+        border-bottom: 1px solid var(--nb-border-color, var(--bs-border-color));
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .graphql-controls label {
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin: 0;
+    }
+    
+    .graphql-controls select {
+        flex: 1;
+        min-width: 150px;
+        max-width: 300px;
+    }
+    
+    .graphql-query-preview {
+        padding: 0.5rem 0.75rem;
+        background: var(--nb-body-bg, var(--bs-body-bg));
+        font-family: monospace;
+        font-size: 0.75rem;
+        color: var(--nb-body-color-secondary, var(--bs-secondary-color));
+        max-height: 80px;
+        overflow: auto;
+        white-space: pre-wrap;
+    }
+    
+    /* Output pane */
+    .ide-output-pane {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 350px;
+        background: var(--nb-body-bg, var(--bs-body-bg));
+    }
+    
+    .output-status {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+    }
+    
+    .output-status.success {
+        background: var(--bs-success);
+        color: #fff;
+    }
+    
+    .output-status.error {
+        background: var(--bs-danger);
+        color: #fff;
+    }
+    
+    .output-status.loading {
+        background: var(--bs-warning);
+        color: #000;
+    }
+    
+    .ide-output-content {
+        flex: 1;
+        overflow: auto;
+        padding: 1rem;
+        font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        line-height: 1.5;
+    }
+    
+    .ide-output-content.has-error {
+        color: var(--bs-danger);
+    }
+    
+    /* Footer */
+    .ide-footer {
+        padding: 0.35rem 1rem;
+        background: var(--nb-card-bg, var(--bs-secondary-bg));
+        border-top: 1px solid var(--nb-border-color, var(--bs-border-color));
+        color: var(--nb-body-color-secondary, var(--bs-secondary-color));
+        font-size: 0.7rem;
+        display: flex;
+        gap: 1.5rem;
+        flex-shrink: 0;
+    }
+    
+    .ide-footer kbd {
+        background: var(--nb-body-bg, var(--bs-body-bg));
+        padding: 0.1rem 0.35rem;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        margin-right: 0.2rem;
+        border: 1px solid var(--nb-border-color, var(--bs-border-color));
+    }
+    
+    /* Resizer */
+    .ide-resizer {
+        width: 3px;
+        background: var(--nb-border-color, var(--bs-border-color));
+        cursor: col-resize;
+        transition: background 0.2s;
+        flex-shrink: 0;
+    }
+    
+    .ide-resizer:hover,
+    .ide-resizer.dragging {
+        background: var(--nb-primary, var(--bs-primary));
+    }
+    
+    /* Notification toast */
+    .save-notification {
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        z-index: 1000;
+        display: none;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .save-notification.success {
+        background: var(--bs-success);
+        color: #fff;
+    }
+    
+    .save-notification.error {
+        background: var(--bs-danger);
+        color: #fff;
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="template-ide-page" id="templateIDE">
+    <!-- Toolbar -->
+    <div class="ide-toolbar">
+        <span class="ide-title">
+            <i class="mdi mdi-code-braces"></i>
+            <span>Template Editor</span>
+            {% if template %}
+                <span class="text-muted">—</span>
+                <span class="text-primary">{{ template.service.name }}</span>
+                {% if template.platform %}/ {{ template.platform }}{% endif %}
+            {% endif %}
+        </span>
+        
+        <div class="toolbar-divider"></div>
+        
+        <button type="button" class="btn btn-sm btn-success" onclick="TemplateIDE.run()" title="Run (Ctrl+Enter)">
+            <i class="mdi mdi-play"></i> Run
+        </button>
+        
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="TemplateIDE.prettify()" title="Format (Shift+Ctrl+P)">
+            <i class="mdi mdi-format-align-left"></i> Prettify
+        </button>
+        
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="TemplateIDE.validate()" title="Validate syntax">
+            <i class="mdi mdi-check-circle"></i> Validate
+        </button>
+        
+        <div class="toolbar-divider"></div>
+        
+        <button type="button" class="btn btn-sm btn-primary" onclick="TemplateIDE.saveNew()" title="Save template">
+            <i class="mdi mdi-content-save"></i> Save{% if template %} (Update){% else %} Template{% endif %}
+        </button>
+        
+        <div style="flex: 1;"></div>
+        
+        <a href="{% url 'plugins:nautobot_network_provisioning:configtemplate_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="mdi mdi-arrow-left"></i> Back
+        </a>
+    </div>
+    
+    <!-- Main content -->
+    <div class="ide-main">
+        <!-- Editor pane (left) -->
+        <div class="ide-editor-pane" id="editorPane">
+            <div class="pane-header">
+                <span class="pane-label">
+                    <i class="mdi mdi-file-code"></i>
+                    Template (Jinja2)
+                </span>
+                <span id="editorLineCol">Ln 1, Col 1</span>
+            </div>
+            <textarea id="templateEditor">{{ template.template_text|default:default_template }}</textarea>
+            
+            <!-- Context Variables Section -->
+            <div class="ide-context-section" id="contextSection">
+                <div class="context-tabs">
+                    <button class="tab-btn active" onclick="TemplateIDE.switchContextTab('json')">
+                        <i class="mdi mdi-code-json"></i> JSON Context
+                    </button>
+                    <button class="tab-btn" onclick="TemplateIDE.switchContextTab('graphql')">
+                        <i class="mdi mdi-graphql"></i> Load from GraphQL
+                    </button>
+                </div>
+                
+                <!-- JSON Context Tab -->
+                <div class="context-content active" id="jsonContextTab">
+                    <textarea id="contextEditor">{{ default_context }}</textarea>
+                </div>
+                
+                <!-- GraphQL Tab - Select saved queries -->
+                <div class="context-content" id="graphqlContextTab">
+                    <div class="graphql-controls">
+                        <label>Query:</label>
+                        <select id="graphqlQuerySelect" class="form-select form-select-sm" onchange="TemplateIDE.onQuerySelected()">
+                            <option value="">Select a saved GraphQL query...</option>
+                        </select>
+                        
+                        <label>Device:</label>
+                        <select id="deviceSelect" class="form-select form-select-sm">
+                            <option value="">Select device...</option>
+                        </select>
+                        
+                        <button class="btn btn-sm btn-info" onclick="TemplateIDE.fetchGraphQL()">
+                            <i class="mdi mdi-download"></i> Fetch Data
+                        </button>
+                        
+                        <a href="/extras/graphql-queries/" target="_blank" class="btn btn-sm btn-outline-secondary" title="Manage GraphQL Queries">
+                            <i class="mdi mdi-open-in-new"></i>
+                        </a>
+                    </div>
+                    <div class="graphql-query-preview" id="queryPreview">
+                        Select a saved GraphQL query to preview it here...
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Resizer -->
+        <div class="ide-resizer" id="ideResizer"></div>
+        
+        <!-- Output pane (right) -->
+        <div class="ide-output-pane" id="outputPane">
+            <div class="pane-header">
+                <span class="pane-label">
+                    <i class="mdi mdi-console"></i>
+                    Rendered Output
+                </span>
+                <span class="output-status" id="outputStatus"></span>
+            </div>
+            <div class="ide-output-content" id="outputContent">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or click <strong>Run</strong> to render...</div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="ide-footer">
+        <span><kbd>Ctrl</kbd><kbd>Enter</kbd> Run</span>
+        <span><kbd>Shift</kbd><kbd>Ctrl</kbd><kbd>P</kbd> Prettify</span>
+        <span><kbd>Ctrl</kbd><kbd>S</kbd> Save</span>
+        <span style="margin-left: auto;">Nautobot NetAccess</span>
+    </div>
+</div>
+
+<!-- Save notification -->
+<div class="save-notification" id="saveNotification"></div>
+
+<!-- Save Modal -->
+<div class="modal fade" id="saveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Save Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="saveTemplateForm">
+                    <div class="mb-3">
+                        <label class="form-label">Automated Task</label>
+                        <select class="form-select" id="saveService" required>
+                            {% for task in automated_tasks %}
+                            <option value="{{ task.pk }}" {% if template and template.service.pk == task.pk %}selected{% endif %}>{{ task.name }}</option>
+                            {% empty %}
+                            <option value="">No tasks available</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Manufacturer</label>
+                        <select class="form-select" id="saveManufacturer" required>
+                            <option value="">Select manufacturer...</option>
+                            {% for mfr in manufacturers %}
+                            <option value="{{ mfr.pk }}" {% if template and template.manufacturer.pk == mfr.pk %}selected{% endif %}>{{ mfr.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Platform</label>
+                        <select class="form-select" id="savePlatform" required>
+                            <option value="">Select platform...</option>
+                            {% for plat in platforms %}
+                            <option value="{{ plat.pk }}" {% if template and template.platform.pk == plat.pk %}selected{% endif %}>{{ plat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="TemplateIDE.doSave()">
+                    <i class="mdi mdi-content-save"></i> Save Template
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/jinja2/jinja2.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script>
+const TemplateIDE = {
+    templateEditor: null,
+    contextEditor: null,
+    previewUrl: '/api/plugins/netaccess/template-preview/',
+    graphqlUrl: '/graphql/',
+    templateId: '{{ template.pk|default:"" }}',
+    activeContextTab: 'json',
+    savedQueries: [],
+    selectedQuery: null,
+    
+    // Detect if dark mode is active
+    isDarkMode: function() {
+        return document.documentElement.getAttribute('data-bs-theme') === 'dark' ||
+               document.body.classList.contains('dark-mode') ||
+               getComputedStyle(document.body).backgroundColor.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/)?.slice(1).every(v => parseInt(v) < 128);
+    },
+    
+    init: function() {
+        const theme = this.isDarkMode() ? 'material-darker' : 'default';
+        
+        // Template editor
+        this.templateEditor = CodeMirror.fromTextArea(document.getElementById('templateEditor'), {
+            mode: 'jinja2',
+            theme: theme,
+            lineNumbers: true,
+            lineWrapping: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            styleActiveLine: true,
+            tabSize: 2,
+            indentUnit: 2,
+            extraKeys: {
+                'Ctrl-Enter': () => this.run(),
+                'Ctrl-S': () => { this.saveNew(); return false; },
+                'Shift-Ctrl-P': () => this.prettify(),
+                'Tab': (cm) => {
+                    if (cm.somethingSelected()) {
+                        cm.indentSelection('add');
+                    } else {
+                        cm.replaceSelection('  ', 'end');
+                    }
+                }
+            }
+        });
+        
+        this.templateEditor.on('cursorActivity', () => {
+            const pos = this.templateEditor.getCursor();
+            document.getElementById('editorLineCol').textContent = `Ln ${pos.line + 1}, Col ${pos.ch + 1}`;
+        });
+        
+        // JSON Context editor
+        this.contextEditor = CodeMirror.fromTextArea(document.getElementById('contextEditor'), {
+            mode: { name: 'javascript', json: true },
+            theme: theme,
+            lineNumbers: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            tabSize: 2
+        });
+        
+        this.setupResizer();
+        this.loadSavedQueries();
+        this.loadDevices();
+        
+        console.log('TemplateIDE initialized (theme: ' + theme + ')');
+    },
+    
+    setupResizer: function() {
+        const resizer = document.getElementById('ideResizer');
+        const editorPane = document.getElementById('editorPane');
+        let startX, startWidth;
+        
+        const startResize = (e) => {
+            startX = e.pageX;
+            startWidth = editorPane.offsetWidth;
+            resizer.classList.add('dragging');
+            document.addEventListener('mousemove', resize);
+            document.addEventListener('mouseup', stopResize);
+        };
+        
+        const resize = (e) => {
+            const diff = e.pageX - startX;
+            const newWidth = startWidth + diff;
+            const container = document.getElementById('templateIDE');
+            const containerWidth = container.offsetWidth;
+            
+            if (newWidth > 400 && (containerWidth - newWidth - 3) > 350) {
+                editorPane.style.flex = 'none';
+                editorPane.style.width = newWidth + 'px';
+            }
+        };
+        
+        const stopResize = () => {
+            resizer.classList.remove('dragging');
+            document.removeEventListener('mousemove', resize);
+            document.removeEventListener('mouseup', stopResize);
+        };
+        
+        resizer.addEventListener('mousedown', startResize);
+    },
+    
+    switchContextTab: function(tab) {
+        this.activeContextTab = tab;
+        
+        document.querySelectorAll('.context-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.context-content').forEach(content => content.classList.remove('active'));
+        
+        if (tab === 'json') {
+            document.querySelector('.tab-btn:first-child').classList.add('active');
+            document.getElementById('jsonContextTab').classList.add('active');
+            this.contextEditor.refresh();
+        } else {
+            document.querySelector('.tab-btn:last-child').classList.add('active');
+            document.getElementById('graphqlContextTab').classList.add('active');
+        }
+    },
+    
+    loadSavedQueries: function() {
+        // Fetch saved GraphQL queries from Nautobot Extras
+        fetch('/api/extras/graphql-queries/?limit=100', {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('graphqlQuerySelect');
+            this.savedQueries = data.results || [];
+            
+            this.savedQueries.forEach(query => {
+                const opt = document.createElement('option');
+                opt.value = query.id;
+                opt.textContent = query.name;
+                select.appendChild(opt);
+            });
+            
+            console.log('Loaded', this.savedQueries.length, 'saved GraphQL queries');
+        })
+        .catch(err => console.error('Failed to load GraphQL queries:', err));
+    },
+    
+    onQuerySelected: function() {
+        const select = document.getElementById('graphqlQuerySelect');
+        const queryId = select.value;
+        const preview = document.getElementById('queryPreview');
+        
+        if (!queryId) {
+            this.selectedQuery = null;
+            preview.textContent = 'Select a saved GraphQL query to preview it here...';
+            return;
+        }
+        
+        const query = this.savedQueries.find(q => q.id === queryId);
+        if (query) {
+            this.selectedQuery = query;
+            preview.textContent = query.query || '(Empty query)';
+        }
+    },
+    
+    loadDevices: function() {
+        fetch('/api/dcim/devices/?limit=500', {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('deviceSelect');
+            const devices = data.results || [];
+            
+            devices.forEach(device => {
+                const opt = document.createElement('option');
+                opt.value = device.id;
+                opt.textContent = `${device.name} (${device.device_type?.model || 'Unknown'})`;
+                select.appendChild(opt);
+            });
+        })
+        .catch(err => console.error('Failed to load devices:', err));
+    },
+    
+    fetchGraphQL: function() {
+        const deviceId = document.getElementById('deviceSelect').value;
+        
+        if (!this.selectedQuery) {
+            this.notify('Please select a GraphQL query first', 'error');
+            return;
+        }
+        
+        if (!deviceId) {
+            this.notify('Please select a device', 'error');
+            return;
+        }
+        
+        // Build variables object with device ID
+        const variables = {
+            device_id: deviceId,
+            deviceId: deviceId,
+            id: deviceId
+        };
+        
+        this.showOutput('loading', 'Fetching data from GraphQL...');
+        
+        fetch(this.graphqlUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify({ 
+                query: this.selectedQuery.query,
+                variables: variables
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.errors) {
+                this.showOutput('error', 'GraphQL Errors:\n' + data.errors.map(e => e.message).join('\n'));
+            } else {
+                const contextData = data.data || {};
+                this.contextEditor.setValue(JSON.stringify(contextData, null, 2));
+                this.switchContextTab('json');
+                this.showOutput('success', 'Data loaded! Click Run to render with this data.\n\nVariables available:\n' + Object.keys(contextData).join(', '));
+                this.notify('GraphQL data loaded', 'success');
+            }
+        })
+        .catch(err => {
+            this.showOutput('error', 'GraphQL request failed: ' + err.message);
+        });
+    },
+    
+    run: function() {
+        const template = this.templateEditor.getValue();
+        let context = {};
+        
+        try {
+            const contextStr = this.contextEditor.getValue().trim();
+            if (contextStr) {
+                context = JSON.parse(contextStr);
+            }
+        } catch (e) {
+            this.showOutput('error', 'Invalid JSON in context:\n' + e.message);
+            return;
+        }
+        
+        this.showOutput('loading', 'Rendering...');
+        
+        fetch(this.previewUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify({ template_text: template, context: context })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.is_valid !== false && data.rendered) {
+                this.showOutput('success', data.rendered);
+            } else {
+                const errors = data.errors ? data.errors.join('\n') : (data.error || 'Unknown error');
+                this.showOutput('error', errors);
+            }
+        })
+        .catch(err => this.showOutput('error', 'Request failed: ' + err.message));
+    },
+    
+    validate: function() {
+        const template = this.templateEditor.getValue();
+        this.showOutput('loading', 'Validating...');
+        
+        fetch(this.previewUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify({ template_text: template, validate_only: true })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.is_valid) {
+                this.showOutput('success', '✓ Template syntax is valid!');
+            } else {
+                const errors = data.errors ? data.errors.join('\n') : 'Invalid template';
+                this.showOutput('error', '✗ Validation failed:\n\n' + errors);
+            }
+        })
+        .catch(err => this.showOutput('error', 'Validation failed: ' + err.message));
+    },
+    
+    prettify: function() {
+        const lines = this.templateEditor.getValue().split('\n');
+        const formatted = [];
+        let indent = 0;
+        
+        for (let line of lines) {
+            let trimmed = line.trim();
+            
+            if (trimmed.match(/^{%\s*(end|else|elif)/)) {
+                indent = Math.max(0, indent - 1);
+            }
+            
+            formatted.push(trimmed ? '  '.repeat(indent) + trimmed : '');
+            
+            if (trimmed.match(/^{%\s*(if|for|block|macro)\s/) && !trimmed.match(/{%\s*end/)) {
+                indent++;
+            }
+            if (trimmed.match(/^{%\s*(else|elif)/)) {
+                indent++;
+            }
+        }
+        
+        this.templateEditor.setValue(formatted.join('\n'));
+        this.notify('Template formatted', 'success');
+    },
+    
+    saveNew: function() {
+        const modal = new bootstrap.Modal(document.getElementById('saveModal'));
+        modal.show();
+    },
+    
+    doSave: function() {
+        const templateText = this.templateEditor.getValue();
+        const service = document.getElementById('saveService').value;
+        const manufacturer = document.getElementById('saveManufacturer').value;
+        const platform = document.getElementById('savePlatform').value;
+        
+        if (!service || !manufacturer || !platform) {
+            this.notify('Please fill all required fields', 'error');
+            return;
+        }
+        
+        const data = {
+            service: service,
+            manufacturer: manufacturer,
+            platform: platform,
+            template_text: templateText,
+            is_active: true
+        };
+        
+        const url = this.templateId 
+            ? `/api/plugins/netaccess/config-templates/${this.templateId}/`
+            : '/api/plugins/netaccess/config-templates/';
+        
+        const method = this.templateId ? 'PATCH' : 'POST';
+        
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify(data)
+        })
+        .then(r => {
+            if (!r.ok) throw new Error('Save failed: ' + r.status);
+            return r.json();
+        })
+        .then(result => {
+            bootstrap.Modal.getInstance(document.getElementById('saveModal')).hide();
+            this.notify('Template saved successfully!', 'success');
+            this.templateId = result.id;
+        })
+        .catch(err => {
+            this.notify('Save failed: ' + err.message, 'error');
+        });
+    },
+    
+    showOutput: function(status, content) {
+        const outputContent = document.getElementById('outputContent');
+        const outputStatus = document.getElementById('outputStatus');
+        
+        outputContent.textContent = content;
+        outputContent.className = 'ide-output-content' + (status === 'error' ? ' has-error' : '');
+        
+        outputStatus.textContent = status === 'success' ? 'Success' : status === 'error' ? 'Error' : 'Loading...';
+        outputStatus.className = 'output-status ' + status;
+    },
+    
+    notify: function(message, type) {
+        const notif = document.getElementById('saveNotification');
+        notif.textContent = message;
+        notif.className = 'save-notification ' + type;
+        notif.style.display = 'block';
+        
+        setTimeout(() => { notif.style.display = 'none'; }, 3000);
+    },
+    
+    getCSRFToken: function() {
+        const name = 'csrftoken';
+        let value = null;
+        if (document.cookie) {
+            for (let cookie of document.cookie.split(';')) {
+                cookie = cookie.trim();
+                if (cookie.startsWith(name + '=')) {
+                    value = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return value;
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => TemplateIDE.init());
+</script>
+{% endblock %}

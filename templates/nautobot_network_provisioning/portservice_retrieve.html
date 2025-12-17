@@ -1,0 +1,205 @@
+{% extends 'generic/object_retrieve.html' %}
+{% load helpers %}
+
+{% block content_left_page %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Automated Task Details</strong>
+    </div>
+    <table class="table table-hover attr-table">
+        <tr>
+            <td>Name</td>
+            <td>{{ object.name }}</td>
+        </tr>
+        <tr>
+            <td>Description</td>
+            <td>{{ object.description|placeholder }}</td>
+        </tr>
+        <tr>
+            <td>Active</td>
+            <td>
+                {% if object.is_active %}
+                    <span class="badge bg-success">Active</span>
+                {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td>Total Templates</td>
+            <td>
+                <span class="badge bg-primary">{{ object.templates.count }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td>Active Templates</td>
+            <td>
+                <span class="badge bg-success">{{ object.templates.filter.is_active|length|default:object.templates.count }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td>Created</td>
+            <td>{{ object.created|placeholder }}</td>
+        </tr>
+        <tr>
+            <td>Last Updated</td>
+            <td>{{ object.last_updated|placeholder }}</td>
+        </tr>
+    </table>
+</div>
+{% endblock content_left_page %}
+
+{% block content_right_page %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Tags</strong>
+    </div>
+    <div class="panel-body">
+        {% if object.tags.all %}
+            {% for tag in object.tags.all %}
+                <a href="{% url 'extras:tag' pk=tag.pk %}">
+                    <span class="badge" style="background-color: {{ tag.color }}; color: {% if tag.color == '#ffffff' %}#000{% else %}#fff{% endif %};">{{ tag.name }}</span>
+                </a>
+            {% endfor %}
+        {% else %}
+            <span class="text-muted">None</span>
+        {% endif %}
+    </div>
+</div>
+{% endblock content_right_page %}
+
+{% block content_full_width_page %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>
+            <i class="mdi mdi-file-document-multiple"></i> 
+            Associated Templates ({{ templates.count }})
+        </strong>
+        <div class="pull-right">
+            <a href="{% url 'plugins:nautobot_network_provisioning:configtemplate_add' %}?service={{ object.pk }}" class="btn btn-xs btn-primary">
+                <i class="mdi mdi-plus"></i> Add Template
+            </a>
+        </div>
+    </div>
+    {% if templates %}
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Manufacturer</th>
+                <th>Platform</th>
+                <th>Software Version</th>
+                <th>Template Preview</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for template in templates %}
+            <tr>
+                <td>
+                    {% if template.manufacturer %}
+                        <a href="{{ template.manufacturer.get_absolute_url }}">{{ template.manufacturer }}</a>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if template.platform %}
+                        <a href="{{ template.platform.get_absolute_url }}">{{ template.platform }}</a>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if template.software_versions.all %}
+                        {% for sv in template.software_versions.all %}
+                            <a href="{{ sv.get_absolute_url }}">{{ sv }}</a>{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">All versions</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <pre style="font-size: 11px; margin: 0; max-height: 60px; overflow: hidden; 
+                                background: #f5f5f5; padding: 4px; border-radius: 4px;
+                                white-space: pre-wrap; word-break: break-word;"><code>{{ template.template_text|truncatechars:150 }}</code></pre>
+                </td>
+                <td>
+                    {% if template.is_active %}
+                        <span class="badge bg-success">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ template.get_absolute_url }}" class="btn btn-xs btn-default" title="View">
+                        <i class="mdi mdi-eye"></i>
+                    </a>
+                    <a href="{% url 'plugins:nautobot_network_provisioning:configtemplate_edit' pk=template.pk %}" class="btn btn-xs btn-warning" title="Edit">
+                        <i class="mdi mdi-pencil"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="panel-body text-muted">
+        <p>No templates are associated with this automated task yet.</p>
+        <a href="{% url 'plugins:nautobot_network_provisioning:configtemplate_add' %}?service={{ object.pk }}" class="btn btn-primary">
+            <i class="mdi mdi-plus"></i> Create First Template
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% if templates %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>
+            <i class="mdi mdi-server"></i> 
+            Templates by Platform
+        </strong>
+    </div>
+    <div class="panel-body">
+        <div class="row">
+            {% regroup templates by platform as platform_list %}
+            {% for platform in platform_list %}
+            <div class="col-md-4">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <strong>
+                            {% if platform.grouper %}
+                                {{ platform.grouper }}
+                            {% else %}
+                                No Platform
+                            {% endif %}
+                        </strong>
+                        <span class="badge bg-info float-end">{{ platform.list|length }} template{{ platform.list|length|pluralize }}</span>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for t in platform.list %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                {% if t.software_versions.all %}
+                                    {% for sv in t.software_versions.all %}{{ sv }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                {% else %}
+                                    All versions
+                                {% endif %}
+                            </span>
+                            {% if t.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock content_full_width_page %}
