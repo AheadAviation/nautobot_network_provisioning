@@ -25,13 +25,13 @@ Network Provisioning provides a comprehensive solution for managing network port
 ### From GitHub (Recommended)
 
 ```bash
-pip install git+https://github.com/AheadAviation/nautobot_network_provisioning.git@v0.1.0
+pip install git+https://github.com/AheadAviation/nautobot_network_provisioning.git@v0.1.1
 ```
 
 Or add to your `requirements.txt`:
 
 ```
-nautobot-network-provisioning @ git+https://github.com/AheadAviation/nautobot_network_provisioning.git@v0.1.0
+nautobot-network-provisioning @ git+https://github.com/AheadAviation/nautobot_network_provisioning.git@v0.1.1
 ```
 
 ### From Source
@@ -48,7 +48,7 @@ Add to your Dockerfile:
 
 ```dockerfile
 # Install directly from GitHub
-RUN pip install git+https://github.com/AheadAviation/nautobot_network_provisioning.git@v0.1.0
+RUN pip install git+https://github.com/AheadAviation/nautobot_network_provisioning.git@v0.1.1
 
 # Or copy locally and install
 COPY ./nautobot_network_provisioning /tmp/nautobot_network_provisioning

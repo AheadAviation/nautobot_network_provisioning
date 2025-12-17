@@ -485,7 +485,7 @@ interface {{ interface }}
             "default_template": default_template,
             "default_context": default_context,
             "default_graphql": default_graphql,
-            "preview_url": "/api/plugins/netaccess/template-preview/",
+            "preview_url": "/api/plugins/network-provisioning/template-preview/",
             # For save modal
             "automated_tasks": PortService.objects.filter(is_active=True),
             "manufacturers": Manufacturer.objects.all(),

@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2024-12-17
+## [0.1.1] - 2025-12-17
+
+### Fixed
+
+- Packaged the plugin as a proper Python module (`nautobot_network_provisioning/`) so `pip install` and GitHub Actions can import it.
+- Release workflow now builds/releases from an installable package layout.
+
+## [0.1.0] - 2025-12-17
 
 ### Added
 
@@ -45,5 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Legacy `software_version` ForeignKey on ConfigTemplate (use `software_versions` M2M field)
 
-[Unreleased]: https://github.com/AheadAviation/nautobot_network_provisioning/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/AheadAviation/nautobot_network_provisioning/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/AheadAviation/nautobot_network_provisioning/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AheadAviation/nautobot_network_provisioning/releases/tag/v0.1.0

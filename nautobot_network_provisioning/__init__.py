@@ -21,7 +21,7 @@ and templates based on the original TWIX tool.
 
 from nautobot.apps import NautobotAppConfig
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 class NetworkProvisioningConfig(NautobotAppConfig):
