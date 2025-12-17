@@ -89,9 +89,70 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install nautobot[all]
-          pip install pytest pytest-django pytest-cov
+          pip install "nautobot>=2.0.0,<3.0.0"
           pip install -e ".[dev]"
+
+      - name: Create Nautobot config for CI
+        env:
+          NAUTOBOT_ALLOWED_HOSTS: "*"
+          NAUTOBOT_DB_HOST: localhost
+          NAUTOBOT_DB_PORT: 5432
+          NAUTOBOT_DB_USER: nautobot
+          NAUTOBOT_DB_PASSWORD: nautobot
+          NAUTOBOT_DB_NAME: nautobot
+          NAUTOBOT_REDIS_HOST: localhost
+          NAUTOBOT_REDIS_PORT: 6379
+          NAUTOBOT_SECRET_KEY: test-secret-key-for-ci-only
+        run: |
+          cat > ci_nautobot_config.py <<'EOF'
+          """Nautobot configuration used by GitHub Actions CI."""
+          import os
+          from nautobot.core.settings import *  # noqa: F403,F401
+          from nautobot.core.settings_funcs import parse_redis_connection
+
+          DEBUG = False
+          SECRET_KEY = os.getenv("NAUTOBOT_SECRET_KEY", "test-secret-key-for-ci-only")
+          ALLOWED_HOSTS = os.getenv("NAUTOBOT_ALLOWED_HOSTS", "*").split(",")
+
+          DATABASES = {
+              "default": {
+                  "ENGINE": "django.db.backends.postgresql",
+                  "NAME": os.getenv("NAUTOBOT_DB_NAME", "nautobot"),
+                  "USER": os.getenv("NAUTOBOT_DB_USER", "nautobot"),
+                  "PASSWORD": os.getenv("NAUTOBOT_DB_PASSWORD", "nautobot"),
+                  "HOST": os.getenv("NAUTOBOT_DB_HOST", "localhost"),
+                  "PORT": os.getenv("NAUTOBOT_DB_PORT", "5432"),
+              }
+          }
+
+          # Redis (cacheops uses database 1; Celery typically uses database 0)
+          CACHEOPS_REDIS = parse_redis_connection(redis_database=1)
+
+          PLUGINS = [
+              "nautobot_network_provisioning",
+          ]
+
+          PLUGINS_CONFIG = {
+              "nautobot_network_provisioning": {
+                  "demo_data": False,
+              }
+          }
+          EOF
+
+      - name: Run migrations
+        env:
+          NAUTOBOT_ALLOWED_HOSTS: "*"
+          NAUTOBOT_DB_HOST: localhost
+          NAUTOBOT_DB_PORT: 5432
+          NAUTOBOT_DB_USER: nautobot
+          NAUTOBOT_DB_PASSWORD: nautobot
+          NAUTOBOT_DB_NAME: nautobot
+          NAUTOBOT_REDIS_HOST: localhost
+          NAUTOBOT_REDIS_PORT: 6379
+          NAUTOBOT_SECRET_KEY: test-secret-key-for-ci-only
+          NAUTOBOT_CONFIG: ci_nautobot_config.py
+        run: |
+          nautobot-server migrate --noinput
 
       - name: Run tests
         env:
@@ -104,9 +165,10 @@ jobs:
           NAUTOBOT_REDIS_HOST: localhost
           NAUTOBOT_REDIS_PORT: 6379
           NAUTOBOT_SECRET_KEY: test-secret-key-for-ci-only
-          NAUTOBOT_CONFIG: /dev/null
+          NAUTOBOT_CONFIG: ci_nautobot_config.py
+          DJANGO_SETTINGS_MODULE: nautobot.core.settings
         run: |
-          pytest nautobot_network_provisioning/tests/ -v --tb=short
+          pytest nautobot_network_provisioning/tests/ -v --tb=short --cov=nautobot_network_provisioning --cov-report=xml
 
       - name: Upload coverage report
         if: matrix.python-version == '3.11'

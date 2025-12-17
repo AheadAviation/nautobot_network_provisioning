@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-12-17
+
+### Fixed
+
+- Allow importing `nautobot_network_provisioning.__version__` without Nautobot installed (fixes Release/Version Bump workflows).
+
 ## [0.1.1] - 2025-12-17
 
 ### Fixed
@@ -52,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Legacy `software_version` ForeignKey on ConfigTemplate (use `software_versions` M2M field)
 
-[Unreleased]: https://github.com/AheadAviation/nautobot_network_provisioning/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/AheadAviation/nautobot_network_provisioning/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/AheadAviation/nautobot_network_provisioning/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/AheadAviation/nautobot_network_provisioning/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AheadAviation/nautobot_network_provisioning/releases/tag/v0.1.0

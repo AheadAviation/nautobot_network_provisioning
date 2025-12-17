@@ -19,9 +19,15 @@ To get started, run the "Load Demo Data" job to populate example services, profi
 and templates based on the original TWIX tool.
 """
 
-from nautobot.apps import NautobotAppConfig
+__version__ = "0.1.2"
 
-__version__ = "0.1.1"
+# NOTE: GitHub Actions (release/version checks) imports this package in a plain
+# Python environment that may not have Nautobot installed. Keep version importable
+# without requiring Nautobot at import-time.
+try:
+    from nautobot.apps import NautobotAppConfig  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    NautobotAppConfig = object  # type: ignore[misc,assignment]
 
 
 class NetworkProvisioningConfig(NautobotAppConfig):
