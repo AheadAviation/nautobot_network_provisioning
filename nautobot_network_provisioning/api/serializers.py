@@ -1,155 +1,80 @@
-"""REST API Serializers for the NetAccess app."""
+"""REST API Serializers for the Network Provisioning (Automation) app."""
 
-from rest_framework import serializers
+from __future__ import annotations
+
 from nautobot.apps.api import NautobotModelSerializer
-from nautobot.dcim.api.serializers import (
-    DeviceSerializer,
-    InterfaceSerializer,
-    LocationSerializer,
-    PlatformSerializer,
-    ManufacturerSerializer,
-)
 
 from nautobot_network_provisioning.models import (
-    PortService,
-    SwitchProfile,
-    ConfigTemplate,
-    ConfigTemplateHistory,
-    JackMapping,
-    WorkQueueEntry,
-    MACAddress,
-    MACAddressEntry,
-    MACAddressHistory,
-    ARPEntry,
-    ControlSetting,
+    Execution,
+    ExecutionStep,
+    Provider,
+    ProviderConfig,
+    RequestForm,
+    RequestFormField,
+    TaskDefinition,
+    TaskImplementation,
+    Workflow,
+    WorkflowStep,
 )
 
 
-class PortServiceSerializer(NautobotModelSerializer):
-    """Serializer for PortService model."""
-
+class TaskDefinitionSerializer(NautobotModelSerializer):
     class Meta:
-        model = PortService
+        model = TaskDefinition
         fields = "__all__"
 
 
-class SwitchProfileSerializer(NautobotModelSerializer):
-    """Serializer for SwitchProfile model."""
-
+class TaskImplementationSerializer(NautobotModelSerializer):
     class Meta:
-        model = SwitchProfile
+        model = TaskImplementation
         fields = "__all__"
 
 
-class ConfigTemplateHistorySerializer(serializers.ModelSerializer):
-    """Serializer for ConfigTemplateHistory model."""
-
+class WorkflowSerializer(NautobotModelSerializer):
     class Meta:
-        model = ConfigTemplateHistory
-        fields = [
-            "id",
-            "template_text",
-            "changed_by",
-            "changed_at",
-            "change_reason",
-        ]
-        read_only_fields = fields
-
-
-class ConfigTemplateSerializer(NautobotModelSerializer):
-    """
-    Serializer for ConfigTemplate model.
-    
-    Includes:
-    - New matching fields (manufacturer, platform, software_version)
-    - Date-based versioning fields
-    - Nested history entries
-    - Display name property
-    """
-    
-    display_name = serializers.CharField(read_only=True)
-    history = ConfigTemplateHistorySerializer(many=True, read_only=True)
-
-    class Meta:
-        model = ConfigTemplate
-        fields = [
-            "id",
-            "url",
-            "display",
-            "display_name",
-            "service",
-            "manufacturer",
-            "platform",
-            "software_version",
-            "switch_profile",
-            "instance",
-            "version",
-            "effective_date",
-            "is_active",
-            "superseded_by",
-            "template_text",
-            "created_by",
-            "is_validated",
-            "validation_message",
-            "created",
-            "last_updated",
-            "tags",
-            "history",
-        ]
-        read_only_fields = ["is_validated", "validation_message", "display_name"]
-
-
-class JackMappingSerializer(NautobotModelSerializer):
-    """Serializer for JackMapping model."""
-
-    class Meta:
-        model = JackMapping
+        model = Workflow
         fields = "__all__"
 
 
-class WorkQueueEntrySerializer(NautobotModelSerializer):
-    """Serializer for WorkQueueEntry model."""
-
+class WorkflowStepSerializer(NautobotModelSerializer):
     class Meta:
-        model = WorkQueueEntry
+        model = WorkflowStep
         fields = "__all__"
 
 
-class MACAddressSerializer(NautobotModelSerializer):
-    """Serializer for MACAddress model."""
-
+class ExecutionSerializer(NautobotModelSerializer):
     class Meta:
-        model = MACAddress
+        model = Execution
         fields = "__all__"
 
 
-class MACAddressEntrySerializer(NautobotModelSerializer):
-    """Serializer for MACAddressEntry model."""
-
+class ExecutionStepSerializer(NautobotModelSerializer):
     class Meta:
-        model = MACAddressEntry
+        model = ExecutionStep
         fields = "__all__"
 
 
-class MACAddressHistorySerializer(NautobotModelSerializer):
-    """Serializer for MACAddressHistory model."""
-
+class ProviderSerializer(NautobotModelSerializer):
     class Meta:
-        model = MACAddressHistory
+        model = Provider
         fields = "__all__"
 
 
-class ARPEntrySerializer(NautobotModelSerializer):
-    """Serializer for ARPEntry model."""
-
+class ProviderConfigSerializer(NautobotModelSerializer):
     class Meta:
-        model = ARPEntry
+        model = ProviderConfig
         fields = "__all__"
 
 
-class ControlSettingSerializer(NautobotModelSerializer):
-    """Serializer for ControlSetting model."""
-
+class RequestFormSerializer(NautobotModelSerializer):
     class Meta:
-        model = ControlSetting
+        model = RequestForm
         fields = "__all__"
+
+
+class RequestFormFieldSerializer(NautobotModelSerializer):
+    class Meta:
+        model = RequestFormField
+        fields = "__all__"
+
+

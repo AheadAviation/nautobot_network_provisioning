@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row mb-3">
+    <div class="col">
+      <h1>{{ request_form.name }}</h1>
+      <p class="text-muted">{{ request_form.description }}</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            {% for spec in form.render_specs %}
+              {% with bound=form[spec.field_name] %}
+                <div
+                  class="form-group"
+                  data-nnp-field="{{ spec.field_name }}"
+                  {% if spec.depends_on %}data-nnp-depends-on="{{ spec.depends_on }}"{% endif %}
+                  {% if spec.show_condition %}data-nnp-show-condition="{{ spec.show_condition|escape }}"{% endif %}
+                >
+                  <label for="{{ bound.id_for_label }}">
+                    {{ spec.label }}
+                    {% if spec.required %}<span class="text-danger">*</span>{% endif %}
+                  </label>
+                  {{ bound }}
+                  {% if spec.help_text %}<small class="form-text text-muted">{{ spec.help_text }}</small>{% endif %}
+                  {% if bound.errors %}
+                    <div class="text-danger">{{ bound.errors }}</div>
+                  {% endif %}
+                </div>
+              {% endwith %}
+            {% endfor %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+            <a href="{% url 'plugins:nautobot_network_provisioning:portal' %}" class="btn btn-outline-secondary">Back</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    function getInputValue(inputEl) {
+      if (!inputEl) return null;
+      const type = (inputEl.getAttribute("type") || "").toLowerCase();
+      if (type === "checkbox") return inputEl.checked;
+      if (inputEl.tagName === "SELECT" && inputEl.multiple) {
+        return Array.from(inputEl.selectedOptions || []).map((o) => o.value);
+      }
+      return inputEl.value;
+    }
+
+    function parseLiteral(lit) {
+      const s = (lit || "").trim();
+      if (s === "true") return true;
+      if (s === "false") return false;
+      if (s === "null" || s === "none") return null;
+      if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+      // string literal: 'x' or "x"
+      const m = s.match(/^['"](.+)['"]$/);
+      if (m) return m[1];
+      return s;
+    }
+
+    // Supports a small subset of "Jinja2 expressions" for client-side visibility:
+    // - input.foo
+    // - input.foo == "bar"
+    // - input.foo != "bar"
+    function evalShowCondition(expr, valuesByField) {
+      const e = (expr || "").trim();
+      if (!e) return true;
+
+      // input.foo == "bar"
+      let m = e.match(/^input\.([A-Za-z0-9_]+)\s*(==|!=)\s*(.+)$/);
+      if (m) {
+        const field = m[1];
+        const op = m[2];
+        const rhs = parseLiteral(m[3]);
+        const lhs = valuesByField[field];
+        if (op === "==") return String(lhs) === String(rhs);
+        if (op === "!=") return String(lhs) !== String(rhs);
+      }
+
+      // input.foo (truthy)
+      m = e.match(/^input\.([A-Za-z0-9_]+)$/);
+      if (m) {
+        const field = m[1];
+        const v = valuesByField[field];
+        if (Array.isArray(v)) return v.length > 0;
+        return !!v;
+      }
+
+      // Unknown expression: fail-open in the browser (server still enforces).
+      return true;
+    }
+
+    function refreshVisibility() {
+      const wrappers = Array.from(document.querySelectorAll("[data-nnp-field]"));
+      const valuesByField = {};
+      wrappers.forEach((w) => {
+        const name = w.getAttribute("data-nnp-field");
+        const input = w.querySelector(`[name="${name}"]`);
+        valuesByField[name] = getInputValue(input);
+      });
+
+      wrappers.forEach((w) => {
+        const name = w.getAttribute("data-nnp-field");
+        const dependsOn = w.getAttribute("data-nnp-depends-on");
+        const showCondition = w.getAttribute("data-nnp-show-condition");
+
+        let visible = true;
+        if (showCondition) {
+          visible = evalShowCondition(showCondition, valuesByField);
+        } else if (dependsOn) {
+          const depVal = valuesByField[dependsOn];
+          visible = Array.isArray(depVal) ? depVal.length > 0 : !!depVal;
+        }
+
+        w.style.display = visible ? "" : "none";
+        // Disable hidden inputs so browsers don't submit stale values.
+        const input = w.querySelector(`[name="${name}"]`);
+        if (input) input.disabled = !visible;
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      document.addEventListener("change", function (e) {
+        if (e && e.target && e.target.name) refreshVisibility();
+      });
+      refreshVisibility();
+    });
+  })();
+</script>
+{% endblock %}
+
+

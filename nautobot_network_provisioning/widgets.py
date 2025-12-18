@@ -18,27 +18,22 @@ class Jinja2EditorWidget(forms.Textarea):
             'class': 'form-control font-monospace',
             'rows': 15,
             'style': 'font-family: monospace; font-size: 13px;',
-            'placeholder': 'Enter Jinja2 template...\n\nExample:\ninterface {{ interface }}\n  description {{ description }}\n  switchport access vlan {{ vlan }}',
+            'placeholder': 'Enter Jinja2 template...\n\nExample:\ninterface {{ interfaces[0].name }}\n  description {{ intended.port.description | default("") }}\n',
         }
         if attrs:
             default_attrs.update(attrs)
         super().__init__(attrs=default_attrs)
     
     def render(self, name, value, attrs=None, renderer=None):
-        """Render textarea with a link to open in IDE."""
+        """Render textarea with a small header."""
         textarea_html = super().render(name, value, attrs, renderer)
         
-        # Add a helpful header with IDE link
+        # Add a helpful header (keep lightweight; full IDE can come later).
         header_html = f'''
         <div class="d-flex justify-content-between align-items-center mb-2">
             <small class="text-muted">
                 <i class="mdi mdi-code-braces"></i> Jinja2 Template
             </small>
-            <a href="{reverse('plugins:nautobot_network_provisioning:template_ide')}" 
-               target="_blank" 
-               class="btn btn-sm btn-outline-primary">
-                <i class="mdi mdi-open-in-new"></i> Open in IDE
-            </a>
         </div>
         '''
         
@@ -61,51 +56,37 @@ class Jinja2EditorWidgetFull(forms.Textarea):
     # Available template variables for the helper panel
     TEMPLATE_VARIABLES = [
         {
-            "category": "Interface",
-            "variables": [
-                {"name": "interface", "example": "GigabitEthernet1/0/1", "description": "Full interface name"},
-                {"name": "interface_name", "example": "GigabitEthernet1/0/1", "description": "Full interface name (alias)"},
-                {"name": "interface_short", "example": "Gi1/0/1", "description": "Short interface name"},
-            ]
-        },
-        {
             "category": "Device",
             "variables": [
-                {"name": "device", "example": "Device object", "description": "Full device object"},
-                {"name": "device_name", "example": "switch-bldg-01", "description": "Device hostname"},
-                {"name": "device_ip", "example": "10.1.1.1", "description": "Device management IP"},
+                {"name": "device", "example": "{'name': 'leaf-01'}", "description": "Target device object/dict"},
+                {"name": "device.name", "example": "leaf-01", "description": "Device name"},
             ]
         },
         {
-            "category": "Location",
+            "category": "Interfaces",
             "variables": [
-                {"name": "building", "example": "Main Campus", "description": "Building location object"},
-                {"name": "building_name", "example": "Main Campus", "description": "Building name"},
-                {"name": "comm_room", "example": "MDF-1", "description": "Communications room ID"},
-                {"name": "jack", "example": "A-101", "description": "Jack identifier"},
+                {"name": "interfaces", "example": "[{'name': 'Gi1/0/1'}]", "description": "Interfaces list/iterable"},
+                {"name": "interfaces[0].name", "example": "GigabitEthernet1/0/1", "description": "First interface name"},
             ]
         },
         {
-            "category": "Network",
+            "category": "Intended",
             "variables": [
-                {"name": "vlan", "example": "100", "description": "VLAN number"},
-                {"name": "vlan_name", "example": "Data-VLAN", "description": "VLAN name"},
-                {"name": "voice_vlan", "example": "200", "description": "Voice VLAN number"},
+                {"name": "intended", "example": "{'port': {'mode': 'access'}}", "description": "User-supplied intent payload"},
+                {"name": "intended.port.mode", "example": "access", "description": "Example intended port mode"},
             ]
         },
         {
-            "category": "Service",
+            "category": "Facts",
             "variables": [
-                {"name": "service", "example": "PortService object", "description": "Service configuration object"},
-                {"name": "service_name", "example": "Access-Data", "description": "Service name"},
+                {"name": "facts", "example": "{'os_version': '17.9.4'}", "description": "Live/discovered facts (optional)"},
             ]
         },
         {
-            "category": "Audit",
+            "category": "Meta",
             "variables": [
-                {"name": "requested_by", "example": "jsmith", "description": "Username who requested change"},
-                {"name": "creator", "example": "admin", "description": "Username who created entry"},
-                {"name": "template_version", "example": "3", "description": "Template version number"},
+                {"name": "meta", "example": "{'requested_by': 'admin'}", "description": "Run/request metadata"},
+                {"name": "meta.timestamp", "example": "2025-12-18T12:00:00+00:00", "description": "Render timestamp"},
             ]
         },
     ]
@@ -155,7 +136,7 @@ class Jinja2EditorWidgetFull(forms.Textarea):
         ]
     
     def __init__(self, attrs=None, preview_url=None):
-        self.preview_url = preview_url or '/api/plugins/netaccess/template-preview/'
+        self.preview_url = preview_url or "/api/plugins/network-provisioning/template-preview/"
         default_attrs = {
             'class': 'jinja2-editor-textarea',
             'data-preview-url': self.preview_url,

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row mb-3">
+    <div class="col">
+      <h1>Automation Portal</h1>
+      <p class="text-muted">Select a request to start a workflow.</p>
+    </div>
+  </div>
+
+  <div class="row">
+    {% for f in forms %}
+      <div class="col-md-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">{{ f.name }}</h5>
+            <p class="card-text text-muted">{{ f.description }}</p>
+            <a class="btn btn-primary" href="{% url 'plugins:nautobot_network_provisioning:portal_request_form' slug=f.slug %}">Start</a>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col">
+        <div class="alert alert-info">No published Request Forms yet.</div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+

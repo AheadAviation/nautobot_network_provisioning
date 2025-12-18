@@ -1,68 +1,49 @@
-"""URL routes for the NetAccess app UI."""
+"""UI URL routes for the Network Provisioning (Automation) app."""
 
-from django.urls import path
-from nautobot.apps.urls import NautobotUIViewSetRouter
+import logging
 
-from nautobot_network_provisioning.views import (
-    PortServiceUIViewSet,
-    SwitchProfileUIViewSet,
-    ConfigTemplateUIViewSet,
-    JackMappingUIViewSet,
-    WorkQueueEntryUIViewSet,
-    MACAddressUIViewSet,
-    MACAddressEntryUIViewSet,
-    MACAddressHistoryUIViewSet,
-    ARPEntryUIViewSet,
-    ControlSettingUIViewSet,
-    PortConfigurationRequestView,
-    PortLookupAPIView,
-    TemplateIDEView,
-)
+from nautobot_network_provisioning.execution_action_urls import urlpatterns as execution_action_urlpatterns
+from nautobot_network_provisioning.portal_urls import urlpatterns as portal_urlpatterns
 
-router = NautobotUIViewSetRouter()
+logger = logging.getLogger(__name__)
 
-# Port Configuration
-router.register("port-services", PortServiceUIViewSet)
-router.register("switch-profiles", SwitchProfileUIViewSet)
-router.register("config-templates", ConfigTemplateUIViewSet)
-router.register("jack-mappings", JackMappingUIViewSet)
-router.register("work-queue", WorkQueueEntryUIViewSet)
+urlpatterns = []
+urlpatterns += portal_urlpatterns
+urlpatterns += execution_action_urlpatterns
 
-# MAC Tracking
-router.register("mac-addresses", MACAddressUIViewSet)
-router.register("mac-entries", MACAddressEntryUIViewSet)
-router.register("mac-history", MACAddressHistoryUIViewSet)
-router.register("arp-entries", ARPEntryUIViewSet)
+# NOTE: Nautobot core may import plugin URLs very early during startup (including for management commands).
+# If the full UI viewsets cannot be imported for any reason, we still want the plugin to load so migrations,
+# post_upgrade, etc. can run. UI routes will be unavailable until the import issue is fixed.
+try:
+    from nautobot.apps.urls import NautobotUIViewSetRouter
 
-# System
-router.register("control-settings", ControlSettingUIViewSet)
+    from nautobot_network_provisioning.views import (
+        ExecutionUIViewSet,
+        ProviderConfigUIViewSet,
+        ProviderUIViewSet,
+        RequestFormFieldUIViewSet,
+        RequestFormUIViewSet,
+        TaskDefinitionUIViewSet,
+        TaskImplementationUIViewSet,
+        WorkflowStepUIViewSet,
+        WorkflowUIViewSet,
+    )
 
-# Custom URL patterns
-urlpatterns = [
-    # Port Configuration Request (TWIX-style form)
-    path(
-        "port-config-request/",
-        PortConfigurationRequestView.as_view(),
-        name="port_config_request",
-    ),
-    # Port Lookup API
-    path(
-        "api/port-lookup/",
-        PortLookupAPIView.as_view(),
-        name="port_lookup_api",
-    ),
-    # Template IDE (GraphiQL-style editor)
-    path(
-        "template-ide/",
-        TemplateIDEView.as_view(),
-        name="template_ide",
-    ),
-    path(
-        "template-ide/<uuid:pk>/",
-        TemplateIDEView.as_view(),
-        name="template_ide_edit",
-    ),
-]
+    router = NautobotUIViewSetRouter()
+    router.register("tasks", TaskDefinitionUIViewSet)
+    router.register("task-implementations", TaskImplementationUIViewSet)
+    router.register("workflows", WorkflowUIViewSet)
+    router.register("workflow-steps", WorkflowStepUIViewSet)
+    router.register("executions", ExecutionUIViewSet)
+    router.register("providers", ProviderUIViewSet)
+    router.register("provider-configs", ProviderConfigUIViewSet)
+    router.register("request-forms", RequestFormUIViewSet)
+    router.register("request-form-fields", RequestFormFieldUIViewSet)
 
-# Add router URLs
-urlpatterns += router.urls
+    urlpatterns += router.urls
+except Exception:  # noqa: BLE001
+    # Intentionally swallow to avoid breaking Nautobot startup/management commands.
+    logger.exception("Failed to register nautobot_network_provisioning UI viewset routes; UI links may be invalid.")
+    pass
+
+

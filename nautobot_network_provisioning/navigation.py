@@ -1,142 +1,141 @@
-"""Navigation menu for the NetAccess app."""
+"""Navigation menu for the Network Provisioning app."""
 
 from nautobot.apps.ui import NavMenuAddButton, NavMenuGroup, NavMenuItem, NavMenuTab
 
+
 menu_items = (
     NavMenuTab(
-        name="Network Access",
+        name="Automation",
         weight=600,
         groups=(
             NavMenuGroup(
-                name="Configuration",
+                name="Authoring",
                 weight=100,
                 items=(
-                    # Automated Tasks - Groups templates by purpose (Primary)
                     NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:portservice_list",
-                        name="Automated Tasks",
-                        weight=100,
-                        permissions=["nautobot_network_provisioning.view_portservice"],
+                        link="plugins:nautobot_network_provisioning:taskdefinition_list",
+                        name="Task Catalog",
+                        weight=5,
+                        permissions=["nautobot_network_provisioning.view_taskdefinition"],
                         buttons=(
                             NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:portservice_add",
-                                permissions=["nautobot_network_provisioning.add_portservice"],
+                                link="plugins:nautobot_network_provisioning:taskdefinition_add",
+                                permissions=["nautobot_network_provisioning.add_taskdefinition"],
                             ),
                         ),
                     ),
-                    # Templates - All config templates with preview
                     NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:configtemplate_list",
-                        name="Config Templates",
-                        weight=200,
-                        permissions=["nautobot_network_provisioning.view_configtemplate"],
+                        link="plugins:nautobot_network_provisioning:taskimplementation_list",
+                        name="Task Implementations",
+                        weight=6,
+                        permissions=["nautobot_network_provisioning.view_taskimplementation"],
                         buttons=(
                             NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:configtemplate_add",
-                                permissions=["nautobot_network_provisioning.add_configtemplate"],
+                                link="plugins:nautobot_network_provisioning:taskimplementation_add",
+                                permissions=["nautobot_network_provisioning.add_taskimplementation"],
                             ),
                         ),
                     ),
-                    # Template IDE - GraphiQL-style editor
                     NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:template_ide",
-                        name="Template IDE",
-                        weight=250,
-                        permissions=["nautobot_network_provisioning.view_configtemplate"],
+                        link="plugins:nautobot_network_provisioning:workflow_list",
+                        name="Workflows",
+                        weight=20,
+                        permissions=["nautobot_network_provisioning.view_workflow"],
+                        buttons=(
+                            NavMenuAddButton(
+                                link="plugins:nautobot_network_provisioning:workflow_add",
+                                permissions=["nautobot_network_provisioning.add_workflow"],
+                            ),
+                        ),
                     ),
-                ),
-            ),
-            NavMenuGroup(
-                name="Work Queue",
-                weight=150,
-                items=(
-                    # New Port Config Request (TWIX-style)
                     NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:port_config_request",
-                        name="New Request",
+                        link="plugins:nautobot_network_provisioning:workflowstep_list",
+                        name="Workflow Steps",
+                        weight=25,
+                        permissions=["nautobot_network_provisioning.view_workflowstep"],
+                        buttons=(
+                            NavMenuAddButton(
+                                link="plugins:nautobot_network_provisioning:workflowstep_add",
+                                permissions=["nautobot_network_provisioning.add_workflowstep"],
+                            ),
+                        ),
+                    ),
+                    NavMenuItem(
+                        link="plugins:nautobot_network_provisioning:provider_list",
+                        name="Providers",
+                        weight=30,
+                        permissions=["nautobot_network_provisioning.view_provider"],
+                        buttons=(
+                            NavMenuAddButton(
+                                link="plugins:nautobot_network_provisioning:provider_add",
+                                permissions=["nautobot_network_provisioning.add_provider"],
+                            ),
+                        ),
+                    ),
+                    NavMenuItem(
+                        link="plugins:nautobot_network_provisioning:providerconfig_list",
+                        name="Provider Configs",
+                        weight=40,
+                        permissions=["nautobot_network_provisioning.view_providerconfig"],
+                        buttons=(
+                            NavMenuAddButton(
+                                link="plugins:nautobot_network_provisioning:providerconfig_add",
+                                permissions=["nautobot_network_provisioning.add_providerconfig"],
+                            ),
+                        ),
+                    ),
+                    NavMenuItem(
+                        link="plugins:nautobot_network_provisioning:requestform_list",
+                        name="Request Forms",
                         weight=50,
-                        permissions=["nautobot_network_provisioning.add_workqueueentry"],
-                    ),
-                    NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:workqueueentry_list",
-                        name="Queue Entries",
-                        weight=100,
-                        permissions=["nautobot_network_provisioning.view_workqueueentry"],
+                        permissions=["nautobot_network_provisioning.view_requestform"],
                         buttons=(
                             NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:workqueueentry_add",
-                                permissions=["nautobot_network_provisioning.add_workqueueentry"],
+                                link="plugins:nautobot_network_provisioning:requestform_add",
+                                permissions=["nautobot_network_provisioning.add_requestform"],
                             ),
                         ),
                     ),
                     NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:jackmapping_list",
-                        name="Jack Mappings",
-                        weight=200,
-                        permissions=["nautobot_network_provisioning.view_jackmapping"],
+                        link="plugins:nautobot_network_provisioning:requestformfield_list",
+                        name="Request Form Fields",
+                        weight=60,
+                        permissions=["nautobot_network_provisioning.view_requestformfield"],
                         buttons=(
                             NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:jackmapping_add",
-                                permissions=["nautobot_network_provisioning.add_jackmapping"],
+                                link="plugins:nautobot_network_provisioning:requestformfield_add",
+                                permissions=["nautobot_network_provisioning.add_requestformfield"],
                             ),
                         ),
                     ),
                 ),
             ),
             NavMenuGroup(
-                name="MAC Tracking",
+                name="Portal",
                 weight=200,
                 items=(
                     NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:macaddress_list",
-                        name="MAC Addresses",
-                        weight=100,
-                        permissions=["nautobot_network_provisioning.view_macaddress"],
-                        buttons=(
-                            NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:macaddress_add",
-                                permissions=["nautobot_network_provisioning.add_macaddress"],
-                            ),
-                        ),
-                    ),
-                    NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:macaddressentry_list",
-                        name="CAM Tables",
-                        weight=200,
-                        permissions=["nautobot_network_provisioning.view_macaddressentry"],
-                    ),
-                    NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:arpentry_list",
-                        name="ARP Entries",
-                        weight=300,
-                        permissions=["nautobot_network_provisioning.view_arpentry"],
-                    ),
-                    NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:macaddresshistory_list",
-                        name="MAC History",
-                        weight=400,
-                        permissions=["nautobot_network_provisioning.view_macaddresshistory"],
+                        link="plugins:nautobot_network_provisioning:portal",
+                        name="Portal",
+                        weight=10,
+                        permissions=["nautobot_network_provisioning.view_requestform"],
                     ),
                 ),
             ),
             NavMenuGroup(
-                name="System",
-                weight=300,
+                name="Executions",
+                weight=250,
                 items=(
                     NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:controlsetting_list",
-                        name="Controls",
-                        weight=100,
-                        permissions=["nautobot_network_provisioning.view_controlsetting"],
-                        buttons=(
-                            NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:controlsetting_add",
-                                permissions=["nautobot_network_provisioning.add_controlsetting"],
-                            ),
-                        ),
+                        link="plugins:nautobot_network_provisioning:execution_list",
+                        name="Executions",
+                        weight=10,
+                        permissions=["nautobot_network_provisioning.view_execution"],
                     ),
                 ),
             ),
         ),
     ),
 )
+
+

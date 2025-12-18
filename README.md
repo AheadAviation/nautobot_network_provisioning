@@ -284,3 +284,7 @@ Apache License 2.0 - See [LICENSE](LICENSE) for details.
 
 - **Issues**: [GitHub Issues](https://github.com/AheadAviation/nautobot_network_provisioning/issues)
 - **Documentation**: [GitHub Wiki](https://github.com/AheadAviation/nautobot_network_provisioning/wiki)
+
+## Design
+
+- See `docs/design.md` for the proposed roadmap and architecture (Parts/Plays, multi-vendor providers, GitOps).

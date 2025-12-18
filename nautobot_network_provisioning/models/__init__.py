@@ -1,35 +1,20 @@
-"""Models for the NetAccess app."""
+"""Models for the Network Provisioning (Automation) app."""
 
-from nautobot_network_provisioning.models.config import (
-    PortService,
-    AutomatedTask,  # Alias for PortService
-    SwitchProfile,
-    ConfigTemplate,
-    ConfigTemplateHistory,
-)
-from nautobot_network_provisioning.models.jack import JackMapping
-from nautobot_network_provisioning.models.queue import WorkQueueEntry
-from nautobot_network_provisioning.models.mac import MACAddress, MACAddressEntry, MACAddressHistory
-from nautobot_network_provisioning.models.arp import ARPEntry
-from nautobot_network_provisioning.models.system import ControlSetting
+from nautobot_network_provisioning.models.providers import Provider, ProviderConfig
+from nautobot_network_provisioning.models.tasks import TaskDefinition, TaskImplementation
+from nautobot_network_provisioning.models.workflows import Workflow, WorkflowStep
+from nautobot_network_provisioning.models.executions import Execution, ExecutionStep
+from nautobot_network_provisioning.models.request_forms import RequestForm, RequestFormField
 
 __all__ = [
-    # Configuration models
-    "PortService",  # Legacy name (kept for backward compatibility)
-    "AutomatedTask",  # New name (alias for PortService)
-    "SwitchProfile",
-    "ConfigTemplate",
-    "ConfigTemplateHistory",
-    # Jack mapping
-    "JackMapping",
-    # Work queue
-    "WorkQueueEntry",
-    # MAC tracking
-    "MACAddress",
-    "MACAddressEntry",
-    "MACAddressHistory",
-    # ARP
-    "ARPEntry",
-    # System
-    "ControlSetting",
+    "TaskDefinition",
+    "TaskImplementation",
+    "Workflow",
+    "WorkflowStep",
+    "Execution",
+    "ExecutionStep",
+    "Provider",
+    "ProviderConfig",
+    "RequestForm",
+    "RequestFormField",
 ]
