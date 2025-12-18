@@ -139,6 +139,26 @@ jobs:
           }
           EOF
 
+      - name: Wait for Postgres and Redis
+        run: |
+          python - <<'PY'
+          import socket, time
+
+          def wait(host, port, timeout=60):
+              deadline = time.time() + timeout
+              while time.time() < deadline:
+                  try:
+                      with socket.create_connection((host, port), timeout=2):
+                          return
+                  except OSError:
+                      time.sleep(1)
+              raise SystemExit(f"Timed out waiting for {host}:{port}")
+
+          wait("localhost", 5432, timeout=60)
+          wait("localhost", 6379, timeout=60)
+          print("Postgres/Redis reachable")
+          PY
+
       - name: Run migrations
         env:
           NAUTOBOT_ALLOWED_HOSTS: "*"
@@ -150,7 +170,7 @@ jobs:
           NAUTOBOT_REDIS_HOST: localhost
           NAUTOBOT_REDIS_PORT: 6379
           NAUTOBOT_SECRET_KEY: test-secret-key-for-ci-only
-          NAUTOBOT_CONFIG: ci_nautobot_config.py
+          NAUTOBOT_CONFIG: ${{ github.workspace }}/ci_nautobot_config.py
         run: |
           nautobot-server migrate --noinput
 
@@ -165,7 +185,7 @@ jobs:
           NAUTOBOT_REDIS_HOST: localhost
           NAUTOBOT_REDIS_PORT: 6379
           NAUTOBOT_SECRET_KEY: test-secret-key-for-ci-only
-          NAUTOBOT_CONFIG: ci_nautobot_config.py
+          NAUTOBOT_CONFIG: ${{ github.workspace }}/ci_nautobot_config.py
           DJANGO_SETTINGS_MODULE: nautobot.core.settings
         run: |
           pytest nautobot_network_provisioning/tests/ -v --tb=short --cov=nautobot_network_provisioning --cov-report=xml
