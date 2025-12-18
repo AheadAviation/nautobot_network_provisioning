@@ -256,6 +256,14 @@ isort nautobot_network_provisioning/
 ruff check nautobot_network_provisioning/
 ```
 
+### Pre-commit (recommended)
+
+```bash
+pip install -e ".[dev]"
+pre-commit install
+pre-commit run -a
+```
+
 ## Versioning
 
 This project uses [Semantic Versioning](https://semver.org/).
