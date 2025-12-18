@@ -19,7 +19,7 @@ To get started, run the "Load Demo Data" job to populate example services, profi
 and templates based on the original TWIX tool.
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 # NOTE: GitHub Actions (release/version checks) imports this package in a plain
 # Python environment that may not have Nautobot installed. Keep version importable
