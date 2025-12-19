@@ -14,6 +14,7 @@ from nautobot_network_provisioning.api.views import (
     TaskImplementationViewSet,
     WorkflowStepViewSet,
     WorkflowViewSet,
+    device_context,
     template_preview,
 )
 
@@ -32,6 +33,7 @@ router.register("request-form-fields", RequestFormFieldViewSet)
 
 urlpatterns = [
     path("template-preview/", template_preview, name="template-preview"),
+    path("device-context/<uuid:pk>/", device_context, name="device-context"),
 ]
 
 urlpatterns += router.urls

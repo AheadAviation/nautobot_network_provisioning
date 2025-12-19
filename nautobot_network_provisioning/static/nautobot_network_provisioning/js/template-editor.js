@@ -394,5 +394,240 @@ if (typeof MutationObserver !== 'undefined') {
     observer.observe(document.body, { childList: true, subtree: true });
 }
 
-// Export for global access
-window.Jinja2Editor = Jinja2Editor;
+    // Export for global access
+    window.Jinja2Editor = Jinja2Editor;
+
+    /**
+     * IDE Mode Implementation
+     */
+    Jinja2Editor.initIDE = function(config) {
+        console.log('Jinja2Editor.initIDE called with config:', config);
+        this.ideConfig = config;
+        
+        const templateArea = document.getElementById(config.templateEditorId);
+        const variablesArea = document.getElementById(config.variablesEditorId);
+        
+        if (!templateArea || !variablesArea) {
+            console.error('IDE textareas not found!', {templateArea, variablesArea});
+            return;
+        }
+
+        console.log('Template content found in textarea:', templateArea.value.length, 'chars');
+
+        // Initialize Template Editor
+        this.templateEditor = CodeMirror.fromTextArea(templateArea, {
+            mode: 'jinja2',
+            theme: 'material-darker',
+            lineNumbers: true,
+            lineWrapping: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            tabSize: 2,
+            indentUnit: 2,
+            extraKeys: {"Tab": "indentMore", "Shift-Tab": "indentLess", "Ctrl-Enter": () => this.runPreviewIDE()}
+        });
+
+        // Initialize Variables Editor
+        this.variablesEditor = CodeMirror.fromTextArea(variablesArea, {
+            mode: 'application/json',
+            theme: 'material-darker',
+            lineNumbers: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            tabSize: 2,
+            indentUnit: 2
+        });
+
+        console.log('Template IDE initialized successfully');
+        
+        // Auto-run preview if there is content
+        if (this.templateEditor.getValue().trim()) {
+            setTimeout(() => this.runPreviewIDE(), 500);
+        }
+    };
+
+    Jinja2Editor.runPreviewIDE = function() {
+        const template = this.templateEditor.getValue();
+        let context = {};
+        try {
+            context = JSON.parse(this.variablesEditor.getValue());
+        } catch (e) {
+            this.updatePreviewStatusIDE('error', 'Invalid JSON context');
+            return;
+        }
+
+        this.updatePreviewStatusIDE('loading', 'Rendering...');
+        
+        fetch(this.ideConfig.previewUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken(),
+            },
+            body: JSON.stringify({
+                template_text: template,
+                context: context
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            const out = document.getElementById(this.ideConfig.previewOutputId);
+            if (data.is_valid) {
+                out.textContent = data.rendered;
+                out.className = 'p-3 font-monospace text-body';
+                this.updatePreviewStatusIDE('success', 'Rendered');
+            } else {
+                out.textContent = data.errors.join('\n');
+                out.className = 'p-3 font-monospace text-danger';
+                this.updatePreviewStatusIDE('error', 'Render Error');
+            }
+        })
+        .catch(err => {
+            this.updatePreviewStatusIDE('error', 'Fetch Error');
+            console.error(err);
+        });
+    };
+
+    Jinja2Editor.updatePreviewStatusIDE = function(status, message) {
+        const el = document.getElementById(this.ideConfig.previewStatusId);
+        if (!el) return;
+        el.textContent = message;
+        el.className = 'badge ' + (status === 'success' ? 'bg-success' : status === 'error' ? 'bg-danger' : 'bg-info');
+    };
+
+    Jinja2Editor.loadDeviceContext = function() {
+        const deviceId = document.getElementById('device-select').value;
+        if (!deviceId) return;
+
+        const btn = document.getElementById('confirm-load-device');
+        btn.disabled = true;
+        btn.textContent = 'Loading...';
+
+        fetch(this.ideConfig.deviceContextUrl + deviceId + '/', {
+            headers: {'X-CSRFToken': this.getCSRFToken()}
+        })
+        .then(response => response.json())
+        .then(data => {
+            this.variablesEditor.setValue(JSON.stringify(data, null, 2));
+            bootstrap.Modal.getInstance(document.getElementById('loadDeviceModal')).hide();
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = 'Load Context';
+        });
+    };
+
+    Jinja2Editor.runGraphQLQuery = function() {
+        const query = document.getElementById('graphql-query-text').value;
+        const btn = document.getElementById('confirm-load-graphql');
+        btn.disabled = true;
+        btn.textContent = 'Running...';
+
+        fetch(this.ideConfig.graphqlUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken(),
+            },
+            body: JSON.stringify({query: query}),
+        })
+        .then(response => response.json())
+        .then(data => {
+            const currentVars = JSON.parse(this.variablesEditor.getValue() || '{}');
+            const merged = {...currentVars, graphql: data.data};
+            this.variablesEditor.setValue(JSON.stringify(merged, null, 2));
+            bootstrap.Modal.getInstance(document.getElementById('loadGraphQLModal')).hide();
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = 'Run & Load Result';
+        });
+    };
+
+    Jinja2Editor.formatIDE = function() {
+        // Basic formatting for template
+        let content = this.templateEditor.getValue();
+        // ... (can reuse existing format logic but adapted for this.templateEditor)
+        const lines = content.split('\n');
+        const formattedLines = [];
+        let indentLevel = 0;
+        for (let line of lines) {
+            let trimmed = line.trim();
+            if (trimmed.match(/^{% end(if|for|macro|block|call) %}/) || trimmed.match(/^{% else %}/) || trimmed.match(/^{% elif /)) {
+                indentLevel = Math.max(0, indentLevel - 1);
+            }
+            if (trimmed !== '') formattedLines.push('  '.repeat(indentLevel) + trimmed);
+            else formattedLines.push('');
+            if (trimmed.match(/^{% (if|for|macro|block|call) /) && !trimmed.match(/{% end/)) indentLevel++;
+            if (trimmed.match(/^{% else %}/) || trimmed.match(/^{% elif /)) indentLevel++;
+        }
+        this.templateEditor.setValue(formattedLines.join('\n'));
+        
+        // Format variables if JSON
+        try {
+            const vars = JSON.parse(this.variablesEditor.getValue());
+            this.variablesEditor.setValue(JSON.stringify(vars, null, 2));
+        } catch (e) {}
+    };
+
+    Jinja2Editor.validateIDE = function() {
+        const template = this.templateEditor.getValue();
+        fetch(this.ideConfig.previewUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken(),
+            },
+            body: JSON.stringify({
+                template_text: template,
+                validate_only: true
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.is_valid) this.updatePreviewStatusIDE('success', 'Syntax Valid ✓');
+            else this.updatePreviewStatusIDE('error', data.errors[0]);
+        });
+    };
+
+    Jinja2Editor.saveIDE = function() {
+        if (!this.ideConfig.implementationId) return;
+        
+        const template = this.templateEditor.getValue();
+        const btn = document.getElementById('btn-save');
+        const oldText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Saving...';
+
+        // Use the API to save
+        // We use the base URL from the config if provided, otherwise fallback
+        const apiUrl = (this.ideConfig.apiUrl || '/api/plugins/network-provisioning/') + 'task-implementations/' + this.ideConfig.implementationId + '/';
+        
+        fetch(apiUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken(),
+            },
+            body: JSON.stringify({
+                template_content: template
+            }),
+        })
+        .then(response => {
+            if (response.ok) {
+                this.updatePreviewStatusIDE('success', 'Saved successfully');
+                this.showNotification('Template saved successfully', 'success');
+            } else {
+                this.updatePreviewStatusIDE('error', 'Save failed');
+                this.showNotification('Failed to save template', 'error');
+            }
+        })
+        .catch(err => {
+            this.updatePreviewStatusIDE('error', 'Save error');
+            console.error('Save error:', err);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = oldText;
+        });
+    };

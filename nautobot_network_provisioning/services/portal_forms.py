@@ -12,7 +12,7 @@ from nautobot.apps.forms import DynamicModelChoiceField, DynamicModelMultipleCho
 from nautobot_network_provisioning.models import RequestForm, RequestFormField
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class PortalFieldRenderSpec:
     """Metadata needed to render and enforce conditional visibility in the portal."""
 
@@ -22,6 +22,7 @@ class PortalFieldRenderSpec:
     help_text: str
     depends_on: str | None
     show_condition: str | None
+    bound_field: Any = None
 
 
 def _set_dotted_path(target: dict[str, Any], path: str, value: Any) -> None:
@@ -108,6 +109,44 @@ class PortalRequestForm(forms.Form):
             depends_on = getattr(f.depends_on, "field_name", None) if f.depends_on_id else None
             show_condition = (f.show_condition or "").strip() or None
 
+            # --- Low Code Lookup Logic ---
+            if f.lookup_type == RequestFormField.LookupTypeChoices.LOCATION_BY_TYPE:
+                loc_type_name = f.lookup_config.get("type", "Building")
+                f.field_type = RequestFormField.FieldTypeChoices.OBJECT_SELECTOR
+                f.object_type = ContentType.objects.get(app_label="dcim", model="location")
+                f.queryset_filter = {"location_type__name": loc_type_name}
+                if f.lookup_config.get("parent_field"):
+                    f.queryset_filter["parent_id"] = f"${f.lookup_config['parent_field']}"
+            
+            elif f.lookup_type == RequestFormField.LookupTypeChoices.VLAN_BY_TAG:
+                f.field_type = RequestFormField.FieldTypeChoices.OBJECT_SELECTOR
+                f.object_type = ContentType.objects.get(app_label="ipam", model="vlan")
+                tag_prefix = f.lookup_config.get("tag_prefix", "Service:")
+                if not f.queryset_filter:
+                    f.queryset_filter = {}
+                if f.lookup_config.get("tag_field"):
+                    f.queryset_filter["tags__name"] = f"{tag_prefix} ${f.lookup_config['tag_field']}"
+                if f.lookup_config.get("location_field"):
+                    f.queryset_filter["locations"] = f"${f.lookup_config['location_field']}"
+
+            elif f.lookup_type == RequestFormField.LookupTypeChoices.DEVICE_BY_ROLE:
+                f.field_type = RequestFormField.FieldTypeChoices.OBJECT_SELECTOR
+                f.object_type = ContentType.objects.get(app_label="dcim", model="device")
+                role_name = f.lookup_config.get("role")
+                if not f.queryset_filter:
+                    f.queryset_filter = {}
+                if role_name:
+                    f.queryset_filter["role__name"] = role_name
+                if f.lookup_config.get("location_field"):
+                    f.queryset_filter["location"] = f"${f.lookup_config['location_field']}"
+            
+            elif f.lookup_type == RequestFormField.LookupTypeChoices.TASK_BY_CATEGORY:
+                f.field_type = RequestFormField.FieldTypeChoices.OBJECT_SELECTOR
+                f.object_type = ContentType.objects.get(app_label="nautobot_network_provisioning", model="taskdefinition")
+                cat_name = f.lookup_config.get("category", "Service Catalog")
+                f.queryset_filter = {"category": cat_name}
+
+            # --- Field Generation ---
             # If the field is conditionally shown, we treat it as not-required at the field level,
             # then enforce "required when visible" by keeping errors only when visible in clean().
             conditional = bool(depends_on or show_condition)
@@ -169,12 +208,18 @@ class PortalRequestForm(forms.Form):
                     continue
                 # Default: single-select. Use validation_rules.multi=True to switch to multi-select.
                 multi = bool((f.validation_rules or {}).get("multi", False))
+                query_params = f.queryset_filter or {}
+                
+                # Convert $field_name to field_id if needed, or just pass along as Nautobot expects
+                # Nautobot's DynamicModelChoiceField handles "$field" syntax natively in query_params.
+                
                 if multi:
                     self.fields[f.field_name] = DynamicModelMultipleChoiceField(
                         queryset=model.objects.all(),
                         required=required_for_widget,
                         label=label,
                         help_text=help_text,
+                        query_params=query_params,
                     )
                 else:
                     self.fields[f.field_name] = DynamicModelChoiceField(
@@ -182,6 +227,7 @@ class PortalRequestForm(forms.Form):
                         required=required_for_widget,
                         label=label,
                         help_text=help_text,
+                        query_params=query_params,
                     )
             else:
                 self.fields[f.field_name] = forms.CharField(
@@ -192,16 +238,16 @@ class PortalRequestForm(forms.Form):
                 )
 
             # Store render metadata for the template (conditional visibility).
-            self.render_specs.append(
-                PortalFieldRenderSpec(
-                    field_name=f.field_name,
-                    label=label,
-                    required=required,
-                    help_text=help_text,
-                    depends_on=depends_on,
-                    show_condition=show_condition,
-                )
+            spec = PortalFieldRenderSpec(
+                field_name=f.field_name,
+                label=label,
+                required=required,
+                help_text=help_text,
+                depends_on=depends_on,
+                show_condition=show_condition,
             )
+            spec.bound_field = self[f.field_name]
+            self.render_specs.append(spec)
 
     def clean(self):
         """Drop/ignore hidden conditional fields and enforce required only when visible."""

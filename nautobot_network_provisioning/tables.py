@@ -21,11 +21,15 @@ class TaskDefinitionTable(BaseTable):
     name = tables.LinkColumn()
     slug = tables.Column()
     category = tables.Column()
+    vendors = tables.TemplateColumn(
+        template_code='{% for m in record.implementations.all %}{{ m.manufacturer }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}',
+        orderable=False
+    )
     actions = ButtonsColumn(TaskDefinition)
 
     class Meta(BaseTable.Meta):
         model = TaskDefinition
-        fields = ("pk", "name", "slug", "category", "actions")
+        fields = ("pk", "name", "slug", "category", "vendors", "actions")
         default_columns = fields
 
 
@@ -146,12 +150,23 @@ class RequestFormFieldTable(BaseTable):
     field_name = tables.Column()
     label = tables.Column()
     field_type = tables.Column()
+    lookup = tables.TemplateColumn(
+        template_code='''
+        {% if record.lookup_type == "manual" %}
+            <span class="label label-default">Manual</span>
+        {% else %}
+            <span class="label label-info">{{ record.get_lookup_type_display }}</span>
+            <br><small class="text-muted">{{ record.lookup_config }}</small>
+        {% endif %}
+        ''',
+        verbose_name="Lookup/Filter"
+    )
     required = tables.BooleanColumn()
     actions = ButtonsColumn(RequestFormField)
 
     class Meta(BaseTable.Meta):
         model = RequestFormField
-        fields = ("pk", "form", "order", "field_name", "label", "field_type", "required", "actions")
+        fields = ("pk", "form", "order", "field_name", "label", "field_type", "lookup", "required", "actions")
         default_columns = fields
 
 

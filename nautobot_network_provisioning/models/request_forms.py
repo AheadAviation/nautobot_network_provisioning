@@ -71,6 +71,22 @@ class RequestFormField(PrimaryModel):
     )
     queryset_filter = models.JSONField(default=dict, blank=True, help_text="Optional queryset filter (JSON).")
 
+    # High-level lookup helpers for "Low Code" usage
+    class LookupTypeChoices(models.TextChoices):
+        MANUAL = "manual", "Manual JSON Filter"
+        LOCATION_BY_TYPE = "location_by_type", "Location by Type"
+        VLAN_BY_TAG = "vlan_by_tag", "VLAN by Tag"
+        DEVICE_BY_ROLE = "device_by_role", "Device by Role"
+        TASK_BY_CATEGORY = "task_by_category", "Task by Category"
+
+    lookup_type = models.CharField(
+        max_length=32,
+        choices=LookupTypeChoices.choices,
+        default=LookupTypeChoices.MANUAL,
+        help_text="Simplified lookup logic for this field."
+    )
+    lookup_config = models.JSONField(default=dict, blank=True, help_text="Configuration for the simplified lookup.")
+
     depends_on = models.ForeignKey(
         to="self",
         on_delete=models.SET_NULL,

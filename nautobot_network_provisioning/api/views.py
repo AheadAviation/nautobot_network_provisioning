@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from nautobot.apps.api import NautobotModelViewSet
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -43,7 +44,25 @@ from nautobot_network_provisioning.models import (
     Workflow,
     WorkflowStep,
 )
-from nautobot_network_provisioning.services.template_renderer import render_template_from_context
+from nautobot_network_provisioning.services.template_renderer import build_context, render_template_from_context
+
+
+def _serialize_context(context):
+    """Recursively serialize context for JSON response."""
+    if isinstance(context, dict):
+        return {k: _serialize_context(v) for k, v in context.items()}
+    if isinstance(context, (list, tuple)):
+        return [_serialize_context(v) for v in context]
+    if hasattr(context, "pk"):
+        return str(context.pk)
+    if hasattr(context, "all"):
+        # Handle QuerySets
+        return [_serialize_context(obj) for obj in context.all()]
+    # Basic types are fine
+    if isinstance(context, (str, int, float, bool, type(None))):
+        return context
+    # Fallback for complex objects: use str() or similar
+    return str(context)
 
 
 class TaskDefinitionViewSet(NautobotModelViewSet):
@@ -154,5 +173,22 @@ def template_preview(request):
             {"is_valid": False, "errors": [f"Render error: {e}"], "warnings": [], "rendered": None, "template_type": "jinja2"},
             status=status.HTTP_200_OK,
         )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def device_context(request, pk):
+    """
+    Get the standard rendering context for a specific device.
+    """
+    from nautobot.dcim.models import Device
+    
+    device = get_object_or_404(Device, pk=pk)
+    context = build_context(device=device)
+    
+    # Serialize context for JSON
+    serialized_context = _serialize_context(context)
+    
+    return Response(serialized_context)
 
 

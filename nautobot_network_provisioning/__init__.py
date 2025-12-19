@@ -40,5 +40,10 @@ class NetworkProvisioningConfig(NautobotAppConfig):
     # to import our `views.py` during startup for "override view" registration.
     override_views = None
 
+    @property
+    def template_extensions(self):
+        from nautobot_network_provisioning.template_content import template_extensions
+        return template_extensions
+
 
 config = NetworkProvisioningConfig

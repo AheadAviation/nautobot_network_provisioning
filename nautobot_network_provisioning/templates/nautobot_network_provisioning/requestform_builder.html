@@ -1,0 +1,55 @@
+{% extends "generic/object_retrieve.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <strong>Form Builder: {{ object.name }}</strong>
+                    <div class="pull-right">
+                        <a href="{% url 'plugins:nautobot_network_provisioning:requestformfield_add' %}?form={{ object.pk }}" class="btn btn-xs btn-primary">
+                            <i class="mdi mdi-plus"></i> Add Field
+                        </a>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <p class="text-muted small">Design the user interface for this request form. Fields are presented to the user in the order specified below.</p>
+                    
+                    <div class="list-group" id="form-fields-list">
+                        {% for field in fields %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center mb-2 border rounded">
+                                <div>
+                                    <span class="badge bg-secondary mr-2">{{ field.order }}</span>
+                                    <strong>{{ field.label }}</strong>
+                                    <code class="ml-2">{{ field.field_name }}</code>
+                                    <span class="label label-info ml-2">{{ field.get_field_type_display }}</span>
+                                    {% if field.required %}
+                                        <span class="label label-danger ml-1">Required</span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <a href="{% url 'plugins:nautobot_network_provisioning:requestformfield_edit' pk=field.pk %}" class="btn btn-xs btn-warning">
+                                        <i class="mdi mdi-pencil"></i> Edit
+                                    </a>
+                                    <a href="{% url 'plugins:nautobot_network_provisioning:requestformfield_delete' pk=field.pk %}" class="btn btn-xs btn-danger">
+                                        <i class="mdi mdi-trash-can-outline"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="alert alert-info">No fields defined yet. Start by adding a field.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="panel-footer">
+                    <a href="{% url 'plugins:nautobot_network_provisioning:portal_request_form' slug=object.slug %}" class="btn btn-sm btn-info" target="_blank">
+                        <i class="mdi mdi-eye"></i> Preview in Portal
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

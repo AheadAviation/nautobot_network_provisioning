@@ -16,24 +16,22 @@
           <form method="post">
             {% csrf_token %}
             {% for spec in form.render_specs %}
-              {% with bound=form[spec.field_name] %}
-                <div
-                  class="form-group"
-                  data-nnp-field="{{ spec.field_name }}"
-                  {% if spec.depends_on %}data-nnp-depends-on="{{ spec.depends_on }}"{% endif %}
-                  {% if spec.show_condition %}data-nnp-show-condition="{{ spec.show_condition|escape }}"{% endif %}
-                >
-                  <label for="{{ bound.id_for_label }}">
-                    {{ spec.label }}
-                    {% if spec.required %}<span class="text-danger">*</span>{% endif %}
-                  </label>
-                  {{ bound }}
-                  {% if spec.help_text %}<small class="form-text text-muted">{{ spec.help_text }}</small>{% endif %}
-                  {% if bound.errors %}
-                    <div class="text-danger">{{ bound.errors }}</div>
-                  {% endif %}
-                </div>
-              {% endwith %}
+              <div
+                class="form-group mb-3"
+                data-nnp-field="{{ spec.field_name }}"
+                {% if spec.depends_on %}data-nnp-depends-on="{{ spec.depends_on }}"{% endif %}
+                {% if spec.show_condition %}data-nnp-show-condition="{{ spec.show_condition|escape }}"{% endif %}
+              >
+                <label for="{{ spec.bound_field.id_for_label }}" class="form-label">
+                  {{ spec.label }}
+                  {% if spec.required %}<span class="text-danger">*</span>{% endif %}
+                </label>
+                {{ spec.bound_field }}
+                {% if spec.help_text %}<div class="form-text text-muted">{{ spec.help_text }}</div>{% endif %}
+                {% if spec.bound_field.errors %}
+                  <div class="invalid-feedback d-block">{{ spec.bound_field.errors }}</div>
+                {% endif %}
+              </div>
             {% endfor %}
             <button type="submit" class="btn btn-primary">Submit</button>
             <a href="{% url 'plugins:nautobot_network_provisioning:portal' %}" class="btn btn-outline-secondary">Back</a>

@@ -1,0 +1,91 @@
+{% extends 'generic/object_retrieve.html' %}
+{% load helpers %}
+
+{% block extra_buttons %}
+    <a href="{% url 'plugins:nautobot_network_provisioning:template_ide' pk=object.pk %}" class="btn btn-info">
+        <i class="mdi mdi-code-braces"></i> Open in IDE
+    </a>
+{% endblock %}
+
+{% block content_left_page %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Task Implementation</strong>
+        </div>
+        <table class="table table-hover panel-body attr-table">
+            <tr>
+                <td>Task</td>
+                <td><a href="{{ object.task.get_absolute_url }}">{{ object.task }}</a></td>
+            </tr>
+            <tr>
+                <td>Name</td>
+                <td>{{ object.name }}</td>
+            </tr>
+            <tr>
+                <td>Manufacturer</td>
+                <td>{{ object.manufacturer }}</td>
+            </tr>
+            <tr>
+                <td>Platform</td>
+                <td>{{ object.platform|placeholder }}</td>
+            </tr>
+            <tr>
+                <td>Type</td>
+                <td>{{ object.get_implementation_type_display }}</td>
+            </tr>
+            <tr>
+                <td>Priority</td>
+                <td>{{ object.priority }}</td>
+            </tr>
+            <tr>
+                <td>Enabled</td>
+                <td>{{ object.enabled|boolean_as_label }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Provider Configuration</strong>
+        </div>
+        <table class="table table-hover panel-body attr-table">
+            <tr>
+                <td>Provider</td>
+                <td>
+                    {% if object.provider_config %}
+                        <a href="{{ object.provider_config.get_absolute_url }}">{{ object.provider_config }}</a>
+                    {% else %}
+                        <span class="text-muted">Default</span>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+{% endblock content_left_page %}
+
+{% block content_full_width_page %}
+    {% if object.implementation_type == 'jinja2_config' or object.implementation_type == 'jinja2_payload' or object.implementation_type == 'graphql_query' %}
+    <div class="panel panel-default">
+        <div class="panel-heading d-flex justify-content-between align-items-center">
+            <strong>Template Content</strong>
+            <a href="{% url 'plugins:nautobot_network_provisioning:template_ide' pk=object.pk %}" class="btn btn-xs btn-info">
+                <i class="mdi mdi-pencil"></i> Edit in IDE
+            </a>
+        </div>
+        <div class="panel-body">
+            <pre><code class="language-jinja2">{{ object.template_content }}</code></pre>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if object.action_config %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Action Configuration (JSON)</strong>
+        </div>
+        <div class="panel-body">
+            <pre>{{ object.action_config|render_json }}</pre>
+        </div>
+    </div>
+    {% endif %}
+{% endblock content_full_width_page %}

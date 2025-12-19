@@ -15,7 +15,14 @@ from typing import Any
 import yaml
 from nautobot.apps.jobs import Job
 
-from nautobot_network_provisioning.models import TaskDefinition, TaskImplementation, Workflow, WorkflowStep
+from nautobot_network_provisioning.models import (
+    RequestForm,
+    RequestFormField,
+    TaskDefinition,
+    TaskImplementation,
+    Workflow,
+    WorkflowStep
+)
 
 
 def _resolve_repo_path(repo: Any) -> Path:  # noqa: ANN401
@@ -133,6 +140,40 @@ class ExportAutomationToGit(Job):
             )
         _write_yaml(out / "workflows.yaml", {"workflows": workflows})
 
+        request_forms = []
+        for rf in RequestForm.objects.all().select_related("workflow").order_by("name"):
+            fields = []
+            for f in RequestFormField.objects.filter(form=rf).select_related("object_type", "depends_on").order_by("order"):
+                fields.append({
+                    "order": f.order,
+                    "field_name": f.field_name,
+                    "field_type": f.field_type,
+                    "label": f.label,
+                    "help_text": f.help_text,
+                    "required": f.required,
+                    "default_value": f.default_value,
+                    "validation_rules": f.validation_rules,
+                    "choices": f.choices,
+                    "lookup_type": f.lookup_type,
+                    "lookup_config": f.lookup_config,
+                    "object_type": f"{f.object_type.app_label}.{f.object_type.model}" if f.object_type else None,
+                    "queryset_filter": f.queryset_filter,
+                    "depends_on": f.depends_on.field_name if f.depends_on else None,
+                    "show_condition": f.show_condition,
+                    "map_to": f.map_to,
+                })
+            request_forms.append({
+                "name": rf.name,
+                "slug": rf.slug,
+                "description": rf.description,
+                "category": rf.category,
+                "icon": rf.icon,
+                "workflow": rf.workflow.slug,
+                "published": rf.published,
+                "fields": fields,
+            })
+        _write_yaml(out / "request_forms.yaml", {"request_forms": request_forms})
+
         return f"Exported to {out}"
 
 
@@ -153,8 +194,9 @@ class ImportAutomationFromGit(Job):
             raise ValueError(f"Input directory not found: {inp}")
 
         from nautobot.dcim.models import Manufacturer, Platform, SoftwareVersion
+        from django.contrib.contenttypes.models import ContentType
 
-        created = {"tasks": 0, "implementations": 0, "workflows": 0, "steps": 0}
+        created = {"tasks": 0, "implementations": 0, "workflows": 0, "steps": 0, "request_forms": 0, "fields": 0}
 
         tasks_data = _read_yaml(inp / "tasks.yaml").get("tasks", [])
         for t in tasks_data:
@@ -239,6 +281,55 @@ class ImportAutomationFromGit(Job):
                     config=s.get("config", {}),
                 )
                 created["steps"] += 1
+
+        request_forms_data = _read_yaml(inp / "request_forms.yaml").get("request_forms", [])
+        for rf in request_forms_data:
+            workflow = Workflow.objects.get(slug=rf["workflow"])
+            obj, was_created = RequestForm.objects.get_or_create(slug=rf["slug"], defaults={"name": rf["name"], "workflow": workflow})
+            if update_existing or was_created:
+                obj.name = rf.get("name", obj.name)
+                obj.description = rf.get("description", obj.description or "")
+                obj.category = rf.get("category", obj.category or "")
+                obj.icon = rf.get("icon", obj.icon or "")
+                obj.workflow = workflow
+                obj.published = bool(rf.get("published", obj.published))
+                obj.save()
+            if was_created:
+                created["request_forms"] += 1
+            
+            if update_existing:
+                RequestFormField.objects.filter(form=obj).delete()
+            
+            for f in rf.get("fields", []):
+                object_type = None
+                if f.get("object_type"):
+                    app_label, model = f["object_type"].split(".")
+                    object_type = ContentType.objects.get(app_label=app_label, model=model)
+                
+                depends_on = None
+                if f.get("depends_on"):
+                    depends_on = RequestFormField.objects.filter(form=obj, field_name=f["depends_on"]).first()
+                
+                RequestFormField.objects.create(
+                    form=obj,
+                    order=int(f.get("order", 0)),
+                    field_name=f["field_name"],
+                    field_type=f.get("field_type", RequestFormField.FieldTypeChoices.TEXT),
+                    label=f.get("label", f["field_name"]),
+                    help_text=f.get("help_text", ""),
+                    required=bool(f.get("required", False)),
+                    default_value=f.get("default_value", {}),
+                    validation_rules=f.get("validation_rules", {}),
+                    choices=f.get("choices", []),
+                    lookup_type=f.get("lookup_type", RequestFormField.LookupTypeChoices.MANUAL),
+                    lookup_config=f.get("lookup_config", {}),
+                    object_type=object_type,
+                    queryset_filter=f.get("queryset_filter", {}),
+                    depends_on=depends_on,
+                    show_condition=f.get("show_condition", ""),
+                    map_to=f.get("map_to", ""),
+                )
+                created["fields"] += 1
 
         return f"Imported. Created: {created}"
 

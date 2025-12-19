@@ -1,0 +1,46 @@
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Task Implementations</strong>
+    </div>
+    <table class="table table-hover panel-body">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Manufacturer</th>
+                <th>Platform</th>
+                <th>Type</th>
+                <th>Priority</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for impl in object.implementations.all %}
+                <tr>
+                    <td>
+                        <a href="{{ impl.get_absolute_url }}">{{ impl.name }}</a>
+                    </td>
+                    <td>{{ impl.manufacturer }}</td>
+                    <td>{{ impl.platform|default:"Any" }}</td>
+                    <td>{{ impl.get_implementation_type_display }}</td>
+                    <td>{{ impl.priority }}</td>
+                    <td class="text-end noprint">
+                        <a href="{% url 'plugins:nautobot_network_provisioning:template_ide' pk=impl.pk %}" class="btn btn-xs btn-info" title="Open in IDE">
+                            <i class="mdi mdi-code-braces"></i>
+                        </a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" class="text-muted text-center">No implementations found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if perms.nautobot_network_provisioning.add_taskimplementation %}
+    <div class="panel-footer text-end">
+        <a href="{% url 'plugins:nautobot_network_provisioning:taskimplementation_add' %}?task={{ object.pk }}" class="btn btn-xs btn-primary">
+            <i class="mdi mdi-plus"></i> Add Implementation
+        </a>
+    </div>
+    {% endif %}
+</div>

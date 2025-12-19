@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import django_filters
 from nautobot.apps.filters import NautobotFilterSet, SearchFilter
-from nautobot.dcim.models import Manufacturer, Platform
+from nautobot.dcim.models import Manufacturer, Platform, SoftwareVersion
 
 from nautobot_network_provisioning.models import (
     Execution,
@@ -36,19 +36,13 @@ class TaskImplementationFilterSet(NautobotFilterSet):
     platform = django_filters.ModelMultipleChoiceFilter(queryset=Platform.objects.all())
     software_versions = django_filters.ModelMultipleChoiceFilter(
         field_name="software_versions",
-        queryset=None,
+        queryset=SoftwareVersion.objects.all(),
     )
     implementation_type = django_filters.MultipleChoiceFilter(choices=TaskImplementation.ImplementationTypeChoices.choices)
 
     class Meta:
         model = TaskImplementation
         fields = ["id", "enabled", "task", "manufacturer", "platform", "software_versions", "implementation_type"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from nautobot.dcim.models import SoftwareVersion
-
-        self.filters["software_versions"].queryset = SoftwareVersion.objects.all()
 
 
 class WorkflowFilterSet(NautobotFilterSet):

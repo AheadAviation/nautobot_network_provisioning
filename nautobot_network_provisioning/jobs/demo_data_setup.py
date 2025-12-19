@@ -74,7 +74,8 @@ class DemoDataSetup(Job):
         # ---------------------------
         from nautobot.dcim.models import Device, DeviceType, Manufacturer, Platform
         from nautobot.dcim.models import Location, LocationType
-        from nautobot.extras.models import Role, Status
+        from nautobot.extras.models import Role, Status, GitRepository
+        from nautobot.extras.choices import GitRepositoryContentTypeChoices
 
         ct_device = ContentType.objects.get(app_label="dcim", model="device")
 
@@ -96,280 +97,237 @@ class DemoDataSetup(Job):
             name="Demo HQ",
             defaults={"location_type": loc_type, "status": status_active},
         )
-        if demo_loc.location_type_id != loc_type.id or demo_loc.status_id != status_active.id:
-            demo_loc.location_type = loc_type
-            demo_loc.status = status_active
-            demo_loc.save()
+        
+        # Manufacturers & Platforms
+        cisco, _ = Manufacturer.objects.get_or_create(name="Cisco", defaults={"slug": "cisco"})
+        arista, _ = Manufacturer.objects.get_or_create(name="Arista", defaults={"slug": "arista"})
+        
+        iosxe, _ = Platform.objects.get_or_create(name="Cisco IOS-XE", defaults={"manufacturer": cisco, "slug": "cisco-ios-xe", "napalm_driver": "ios"})
+        eos, _ = Platform.objects.get_or_create(name="Arista EOS", defaults={"manufacturer": arista, "slug": "arista-eos", "napalm_driver": "eos"})
 
-        demo_mfr, _ = Manufacturer.objects.get_or_create(
-            name="DemoVendor",
-            defaults=_filter_defaults_for_model(Manufacturer, {"slug": "demo-vendor"}),
+        # Demo Devices
+        dt_cisco, _ = DeviceType.objects.get_or_create(
+            manufacturer=cisco,
+            model="C9300-48P",
+            defaults={"slug": "c9300-48p", "u_height": 1}
         )
-        demo_platform, _ = Platform.objects.get_or_create(
-            name="DemoOS",
-            defaults=_filter_defaults_for_model(Platform, {"slug": "demoos"}),
-        )
-
-        demo_dt, _ = DeviceType.objects.get_or_create(
-            manufacturer=demo_mfr,
-            model="DemoSwitch-1U",
-            defaults=_filter_defaults_for_model(DeviceType, {"slug": "demoswitch-1u", "u_height": 1, "is_full_depth": True}),
+        dt_arista, _ = DeviceType.objects.get_or_create(
+            manufacturer=arista,
+            model="DCS-7050SX",
+            defaults={"slug": "dcs-7050sx", "u_height": 1}
         )
 
-        demo_device, _ = Device.objects.get_or_create(
-            name="demo-switch-01",
+        device_cisco, _ = Device.objects.get_or_create(
+            name="cisco-sw-01",
             defaults={
-                "device_type": demo_dt,
+                "device_type": dt_cisco,
                 "status": status_active,
                 "role": role_demo,
                 "location": demo_loc,
-                "platform": demo_platform,
+                "platform": iosxe,
             },
         )
-        # Ensure required FKs are present if the device already existed.
-        changed = False
-        for field, value in (
-            ("device_type", demo_dt),
-            ("status", status_active),
-            ("role", role_demo),
-            ("location", demo_loc),
-            ("platform", demo_platform),
-        ):
-            if getattr(demo_device, f"{field}_id", None) != getattr(value, "id", None):
-                setattr(demo_device, field, value)
-                changed = True
-        if changed:
-            demo_device.save()
+        device_arista, _ = Device.objects.get_or_create(
+            name="arista-sw-01",
+            defaults={
+                "device_type": dt_arista,
+                "status": status_active,
+                "role": role_demo,
+                "location": demo_loc,
+                "platform": eos,
+            },
+        )
 
         # ---------------------------
-        # Providers (our app models)
+        # Git Repositories
+        # ---------------------------
+        demo_repo, _ = GitRepository.objects.get_or_create(
+            name="Automation Catalog",
+            defaults={
+                "remote_url": "https://github.com/nautobot/devicetype-library.git",
+                "branch": "main",
+                "provided_contents": [
+                    "nautobot_network_provisioning.taskimplementation",
+                    "nautobot_network_provisioning.workflow"
+                ]
+            }
+        )
+
+        # ---------------------------
+        # Providers
         # ---------------------------
         napalm_provider, _ = Provider.objects.get_or_create(
             name="napalm_cli",
             defaults={
                 "driver_class": "nautobot_network_provisioning.services.providers.napalm_cli.NapalmCLIProvider",
-                "description": "Demo NAPALM provider (prefers Nautobot-native Device.get_napalm_device()).",
+                "description": "Demo NAPALM provider.",
                 "capabilities": ["render", "diff", "apply"],
                 "enabled": True,
             },
         )
-        if demo_platform and not napalm_provider.supported_platforms.filter(pk=demo_platform.pk).exists():
-            napalm_provider.supported_platforms.add(demo_platform)
+        napalm_provider.supported_platforms.add(iosxe, eos)
 
         napalm_cfg, _ = ProviderConfig.objects.get_or_create(
             provider=napalm_provider,
-            name="demo-napalm",
+            name="Default NAPALM",
             defaults={"enabled": True, "settings": {}},
         )
-        if not napalm_cfg.scope_locations.filter(pk=demo_loc.pk).exists():
-            napalm_cfg.scope_locations.add(demo_loc)
+        napalm_cfg.scope_locations.add(demo_loc)
 
         # ---------------------------
-        # Tasks + Implementations
+        # Task Definitions
         # ---------------------------
         task_vlan, _ = TaskDefinition.objects.get_or_create(
-            slug="change-interface-vlan",
+            slug="configure-vlan",
             defaults={
-                "name": "Change Interface VLAN",
-                "description": "Change the access VLAN on an interface.",
-                "category": "Configuration",
-                "input_schema": {"type": "object", "properties": {"interface": {"type": "string"}, "vlan_id": {"type": "integer"}}},
-                "output_schema": {"type": "object"},
-                "documentation": "Demo task for changing an interface VLAN.",
+                "name": "Configure VLAN",
+                "description": "Create or update a VLAN on the device.",
+                "category": "Layer 2",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "vlan_id": {"type": "integer", "minimum": 1, "maximum": 4094},
+                        "vlan_name": {"type": "string"}
+                    },
+                    "required": ["vlan_id"]
+                }
             },
         )
 
-        # A minimal template that will render even without a live interface object.
-        impl_vlan, _ = TaskImplementation.objects.get_or_create(
-            task=task_vlan,
-            manufacturer=demo_mfr,
-            platform=demo_platform,
-            name="DemoOS: change interface VLAN",
+        task_snmp, _ = TaskDefinition.objects.get_or_create(
+            slug="configure-snmp",
             defaults={
-                "priority": 100,
+                "name": "Configure SNMP",
+                "description": "Configure SNMP communities and contacts.",
+                "category": "Management",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "community": {"type": "string"},
+                        "contact": {"type": "string"}
+                    }
+                }
+            },
+        )
+
+        # ---------------------------
+        # Task Implementations
+        # ---------------------------
+        # VLAN - Cisco
+        TaskImplementation.objects.get_or_create(
+            task=task_vlan,
+            manufacturer=cisco,
+            platform=iosxe,
+            name="Cisco IOS-XE: VLAN",
+            defaults={
                 "implementation_type": TaskImplementation.ImplementationTypeChoices.JINJA2_CONFIG,
                 "template_content": (
-                    "! Demo change VLAN\\n"
-                    "interface {{ intended.inputs.interface | default('Ethernet1') }}\\n"
-                    " switchport access vlan {{ intended.inputs.vlan_id | default(123) }}\\n"
-                    " description {{ intended.inputs.description | default('Demo change') }}\\n"
+                    "vlan {{ intended.inputs.vlan_id }}\n"
+                    " name {{ intended.inputs.vlan_name | default('VLAN_' ~ intended.inputs.vlan_id) }}\n"
                 ),
                 "provider_config": napalm_cfg,
-                "enabled": True,
-            },
-        )
-        # Keep provider_config linked if record already existed.
-        if impl_vlan.provider_config_id != napalm_cfg.id:
-            impl_vlan.provider_config = napalm_cfg
-            impl_vlan.save()
-
-        # ---------------------------
-        # Workflow + Steps
-        # ---------------------------
-        wf, _ = Workflow.objects.get_or_create(
-            slug="demo-change-vlan",
-            defaults={
-                "name": "Demo: Change VLAN (with approval)",
-                "description": "Demo workflow showing a task + approval gate.",
-                "category": "Day-2 Ops",
-                "enabled": True,
-                "approval_required": True,
-                "schedule_allowed": False,
-                "input_schema": {"type": "object"},
-                "default_inputs": {},
-            },
-        )
-
-        # Ensure steps exist (idempotent by order).
-        step1, _ = WorkflowStep.objects.get_or_create(
-            workflow=wf,
-            order=10,
-            defaults={"name": "Render change", "step_type": WorkflowStep.StepTypeChoices.TASK, "task": task_vlan},
-        )
-        if step1.task_id != task_vlan.id or step1.step_type != WorkflowStep.StepTypeChoices.TASK:
-            step1.task = task_vlan
-            step1.step_type = WorkflowStep.StepTypeChoices.TASK
-            step1.save()
-
-        approval, _ = WorkflowStep.objects.get_or_create(
-            workflow=wf,
-            order=20,
-            defaults={"name": "Approval", "step_type": WorkflowStep.StepTypeChoices.APPROVAL},
-        )
-        if approval.step_type != WorkflowStep.StepTypeChoices.APPROVAL:
-            approval.step_type = WorkflowStep.StepTypeChoices.APPROVAL
-            approval.task = None
-            approval.save()
-
-        # ---------------------------
-        # Request Form + Fields
-        # ---------------------------
-        rf, _ = RequestForm.objects.get_or_create(
-            slug="demo-change-vlan",
-            defaults={
-                "name": "Demo: Change Interface VLAN",
-                "description": "Example portal form demonstrating mapping + conditional field visibility.",
-                "category": "Day-2 Ops",
-                "icon": "mdi-swap-vertical",
-                "workflow": wf,
-                "published": True,
-            },
-        )
-        if rf.workflow_id != wf.id or not rf.published:
-            rf.workflow = wf
-            rf.published = True
-            rf.save()
-
-        ct_device_model = ContentType.objects.get(app_label="dcim", model="device")
-
-        # Define fields by name; update/create.
-        field_specs = [
-            dict(
-                order=10,
-                field_name="device",
-                field_type=RequestFormField.FieldTypeChoices.OBJECT_SELECTOR,
-                label="Device",
-                help_text="Optional: pick a target device (demo includes demo-switch-01).",
-                required=False,
-                object_type=ct_device_model,
-                validation_rules={"multi": False},
-                map_to="target.device",
-            ),
-            dict(
-                order=20,
-                field_name="interface",
-                field_type=RequestFormField.FieldTypeChoices.TEXT,
-                label="Interface",
-                help_text="Interface name, e.g. Ethernet1",
-                required=True,
-                map_to="intended.port.interface",
-            ),
-            dict(
-                order=30,
-                field_name="vlan_id",
-                field_type=RequestFormField.FieldTypeChoices.NUMBER,
-                label="New VLAN ID",
-                help_text="Access VLAN number",
-                required=True,
-                map_to="intended.port.untagged_vlan",
-            ),
-            dict(
-                order=40,
-                field_name="advanced",
-                field_type=RequestFormField.FieldTypeChoices.BOOLEAN,
-                label="Advanced options",
-                help_text="Show advanced options",
-                required=False,
-                map_to="meta.advanced",
-            ),
-            dict(
-                order=50,
-                field_name="description",
-                field_type=RequestFormField.FieldTypeChoices.TEXT,
-                label="Interface description",
-                help_text="Only shown when Advanced options is enabled.",
-                required=False,
-                depends_on="advanced",  # wired below
-                show_condition="input.advanced",
-                map_to="intended.port.description",
-            ),
-        ]
-
-        # Create/update fields; wire depends_on FK afterwards.
-        by_name: dict[str, RequestFormField] = {}
-        for spec in field_specs:
-            fn = spec["field_name"]
-            defaults = {
-                "order": spec["order"],
-                "field_type": spec["field_type"],
-                "label": spec["label"],
-                "help_text": spec.get("help_text", ""),
-                "required": spec.get("required", False),
-                "validation_rules": spec.get("validation_rules", {}),
-                "choices": spec.get("choices", []),
-                "object_type": spec.get("object_type", None),
-                "queryset_filter": spec.get("queryset_filter", {}),
-                "show_condition": spec.get("show_condition", ""),
-                "map_to": spec.get("map_to", ""),
             }
-            obj, _ = RequestFormField.objects.get_or_create(form=rf, field_name=fn, defaults=defaults)
-            # Keep it updated.
-            changed = False
-            for k, v in defaults.items():
-                if getattr(obj, k) != v:
-                    setattr(obj, k, v)
-                    changed = True
-            if changed:
-                obj.save()
-            by_name[fn] = obj
-
-        # depends_on
-        desc = by_name.get("description")
-        adv = by_name.get("advanced")
-        if desc and adv and desc.depends_on_id != adv.id:
-            desc.depends_on = adv
-            desc.save(update_fields=["depends_on", "last_updated"])
-
-        # ---------------------------
-        # A demo Execution (for list view)
-        # ---------------------------
-        Execution.objects.get_or_create(
-            workflow=wf,
-            status=Execution.StatusChoices.PENDING,
+        )
+        # VLAN - Arista
+        TaskImplementation.objects.get_or_create(
+            task=task_vlan,
+            manufacturer=arista,
+            platform=eos,
+            name="Arista EOS: VLAN",
             defaults={
-                "inputs": {"interface": "Ethernet1", "vlan_id": 123, "description": "Demo port"},
-                "context": {"operation": "render"},
-            },
+                "implementation_type": TaskImplementation.ImplementationTypeChoices.JINJA2_CONFIG,
+                "template_content": (
+                    "vlan {{ intended.inputs.vlan_id }}\n"
+                    "   name {{ intended.inputs.vlan_name | default('VLAN_' ~ intended.inputs.vlan_id) }}\n"
+                ),
+                "provider_config": napalm_cfg,
+            }
+        )
+        # SNMP - Cisco
+        TaskImplementation.objects.get_or_create(
+            task=task_snmp,
+            manufacturer=cisco,
+            platform=iosxe,
+            name="Cisco IOS-XE: SNMP",
+            defaults={
+                "implementation_type": TaskImplementation.ImplementationTypeChoices.JINJA2_CONFIG,
+                "template_content": (
+                    "snmp-server community {{ intended.inputs.community | default('public') }} RO\n"
+                    "snmp-server contact {{ intended.inputs.contact | default('NetOps') }}\n"
+                ),
+                "provider_config": napalm_cfg,
+            }
+        )
+        # SNMP - Arista
+        TaskImplementation.objects.get_or_create(
+            task=task_snmp,
+            manufacturer=arista,
+            platform=eos,
+            name="Arista EOS: SNMP",
+            defaults={
+                "implementation_type": TaskImplementation.ImplementationTypeChoices.JINJA2_CONFIG,
+                "template_content": (
+                    "snmp-server community {{ intended.inputs.community | default('public') }} ro\n"
+                    "snmp-server contact {{ intended.inputs.contact | default('NetOps') }}\n"
+                ),
+                "provider_config": napalm_cfg,
+            }
+        )
+
+        # ---------------------------
+        # Workflows
+        # ---------------------------
+        wf_vlan, _ = Workflow.objects.get_or_create(
+            slug="standard-vlan-creation",
+            defaults={
+                "name": "Standard VLAN Creation",
+                "description": "End-to-end VLAN creation with audit trail.",
+                "category": "Self-Service",
+                "enabled": True,
+            }
+        )
+        WorkflowStep.objects.get_or_create(workflow=wf_vlan, order=10, defaults={"name": "Push Config", "step_type": WorkflowStep.StepTypeChoices.TASK, "task": task_vlan})
+
+        # ---------------------------
+        # Request Forms
+        # ---------------------------
+        rf_vlan, _ = RequestForm.objects.get_or_create(
+            slug="vlan-request",
+            defaults={
+                "name": "Request New VLAN",
+                "workflow": wf_vlan,
+                "published": True,
+                "category": "Layer 2",
+            }
+        )
+        RequestFormField.objects.get_or_create(
+            form=rf_vlan,
+            field_name="vlan_id",
+            defaults={
+                "order": 10,
+                "field_type": RequestFormField.FieldTypeChoices.NUMBER,
+                "label": "VLAN ID",
+                "required": True,
+            }
+        )
+        RequestFormField.objects.get_or_create(
+            form=rf_vlan,
+            field_name="vlan_name",
+            defaults={
+                "order": 20,
+                "field_type": RequestFormField.FieldTypeChoices.TEXT,
+                "label": "VLAN Name",
+                "required": False,
+            }
         )
 
         return (
-            "Demo data created/updated:\n"
-            "- ProviderConfig: demo-napalm\n"
-            "- Device: demo-switch-01\n"
-            "- Task: change-interface-vlan\n"
-            "- Workflow: demo-change-vlan\n"
-            "- Request Form: demo-change-vlan (published)\n"
-            "- Execution: pending"
+            "Demo data populated successfully.\n"
+            "- Manufacturers: Cisco, Arista\n"
+            "- Platforms: IOS-XE, EOS\n"
+            "- Tasks: Configure VLAN, Configure SNMP\n"
+            "- Git Repo: Automation Catalog\n"
+            "- Workflow: Standard VLAN Creation"
         )
 
 

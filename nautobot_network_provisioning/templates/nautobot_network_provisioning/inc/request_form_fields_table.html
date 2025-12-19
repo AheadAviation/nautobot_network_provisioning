@@ -1,0 +1,60 @@
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Form Fields</strong>
+        <div class="pull-right">
+            {% if perms.nautobot_network_provisioning.add_requestformfield %}
+                <a href="{% url 'plugins:nautobot_network_provisioning:requestformfield_add' %}?form={{ object.pk }}" class="btn btn-xs btn-primary">
+                    <i class="mdi mdi-plus"></i> Add Field
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    <table class="table table-hover panel-body">
+        <thead>
+            <tr>
+                <th>Order</th>
+                <th>Field Name</th>
+                <th>Label</th>
+                <th>Type</th>
+                <th>Required</th>
+                <th>Map To</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for field in object.fields.all %}
+                <tr>
+                    <td>{{ field.order }}</td>
+                    <td>
+                        <a href="{{ field.get_absolute_url }}">{{ field.field_name }}</a>
+                    </td>
+                    <td>{{ field.label }}</td>
+                    <td>{{ field.get_field_type_display }}</td>
+                    <td>
+                        {% if field.required %}
+                            <span class="label label-success">Yes</span>
+                        {% else %}
+                            <span class="label label-default">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if field.map_to %}
+                            <code>{{ field.map_to }}</code>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'plugins:nautobot_network_provisioning:requestformfield_edit' pk=field.pk %}" class="btn btn-xs btn-warning">
+                            <i class="mdi mdi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="7" class="text-muted text-center">No fields defined for this form.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

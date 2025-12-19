@@ -1,179 +1,84 @@
-# UI design (Automation tab)
+# UI/UX Design Strategy: The "Automation Hub" Approach
 
-The navigation is organized to support the workflow from building blocks → orchestration → self-service.
+The current UI approach of using fragmented tables (Tasks, Implementations, Workflows, Forms) is being replaced by a **Hub-based architecture**. This ensures that "clicking on stuff" always provides context, actionable next steps, and a clear path from design to execution.
 
-## Automation → Portal (self-service)
+## 1. Core UX Principles
+- **No Dead Ends**: Every object view must answer "What can I do next?".
+- **Contextual Connectivity**: Link from physical (DCIM) to logical (Automation) seamlessly.
+- **Visual Authoring**: Move away from row-based editing to IDE/Designer views.
+- **Status at a Glance**: Don't make the user click to see if a Task is implemented or if a Workflow is failing.
 
-The "front door" for operators. Clean, simple, focused on getting work done.
+---
 
-- Grid/list of published Request Forms
-- Filter by category, tags, recent
-- Each card shows: name, description, "Start" button
-- Recent executions for quick access
-- No technical details visible—just user-friendly forms
+## 2. Navigation Structure (The Sidebar)
 
-## Automation → Executions
+The sidebar is simplified into three distinct zones:
 
-View all workflow executions (runs).
+### **A. SELF-SERVICE (Operational Focus)**
+*   **Portal**: The "front door" for non-engineers. Simple service cards.
+*   **My Requests**: Track status of your own executions.
 
-- List with filters: status, workflow, user, date range, device
-- Status indicators: pending, running, awaiting approval, completed, failed
-- Click to see execution details:
-  - Step-by-step progress
-  - Rendered configs/payloads
-  - Logs and outputs
-  - Diff views (before/after)
-  - Approval history
+### **B. THE CATALOG (Engineering Focus)**
+*   **Automation Hub**: The unified workspace for building and managing everything.
+*   **Execution History**: Auditable logs of all runs.
 
-## Automation → Request Forms
+### **C. SYSTEM (Administrator Focus)**
+*   **Providers**: Driver & credential management.
+*   **Git Sync**: Repository health and manual sync.
 
-Build user-facing forms for the portal.
+---
 
-- CRUD Request Forms
-- Form builder UI:
-  - Drag-and-drop field ordering
-  - Field types: object selector, text, number, choice, boolean
-  - Conditional visibility (show field X if field Y = Z)
-  - Validation rules
-  - Help text and placeholders
-- Link to Workflow
-- Preview mode (test the form)
-- Publish/unpublish toggle
+## 3. The "Automation Hub" (Unified Workspace)
 
-## Automation → Workflows
+Instead of separate menus, the Hub provides a nested, interactive tree/grid view:
 
-Orchestrate Tasks into end-to-end processes.
+- **Task Catalog (The "What")**:
+    - Click a Task → Shows description, input variables, and **nested Implementations**.
+    - Action: "Add Implementation" or "Run Now" (opens preview).
+- **Implementations (The "How")**:
+    - Direct link to **Template IDE**.
+    - No more standard forms for code.
+- **Workflows (The "Orchestration")**:
+    - Direct link to **Workflow Designer**.
+    - Shows associated Request Forms immediately.
 
-- CRUD Workflows
-- Visual step builder:
-  - Add steps (Task, Validation, Approval, Notification, Condition, Wait)
-  - Drag to reorder
-  - Configure each step's inputs/outputs
-  - Set conditions and failure behavior
-- Test mode:
-  - Select target device(s)
-  - Provide sample inputs
-  - Dry-run execution (render only, no push)
-- Version history
+---
 
-## Automation → Task Catalog
+## 4. The "Form Designer" (New Standard)
 
-Browse and manage the catalog of available operations.
+Request Forms are no longer managed via the "Request Form Fields" table. The **Request Form Detail View** is the designer:
+- **Live Preview Pane**: See the form change as you edit fields.
+- **Smart Helpers**: Dropdowns for "Building", "VLAN by Tag", etc., hide technical complexity.
+- **Consolidated Actions**: Reorder, edit, and test in one single screen.
 
-- List of TaskDefinitions organized by category
-- For each Task:
-  - Description of what it does
-  - Input/output schemas
-  - List of implementations (by platform)
-  - "Add Implementation" button
-- Create new Tasks
+---
 
-## Automation → Task Implementations
+## 5. Seamless DCIM Integration (The "Wiring")
 
-Create platform-specific implementations.
+To fix the "goes nowhere" feeling, the app injects context into core Nautobot objects:
 
-- Guided creation flow:
-  1. Select Task (e.g., "Change VLAN")
-  2. Select Manufacturer (e.g., "Cisco")
-  3. Select Platform (e.g., "IOS-XE") – filtered by manufacturer
-  4. Optionally specify Software Version pattern
-  5. Choose implementation type (Jinja2, API call, Python hook)
-  6. Write/configure the implementation
-  7. Test against sample device
-- Template editor with:
-  - Syntax highlighting
-  - Variable autocomplete (from input schema)
-  - Live preview with sample data
-  - Validation/linting
+- **On a Location (Building/Site)**: 
+    - Button: "Provision New Service" → Directs to Portal with Location pre-selected.
+- **On an Interface/Port**:
+    - Button: "Change VLAN/Service" → Directs to Portal with Device/Port pre-selected.
+- **On a Device**:
+    - Button: "Run Maintenance Task" → Shows only Tasks compatible with this platform.
 
-## Automation → Providers
+---
 
-Configure connection drivers and external integrations.
+## 6. Execution & Monitoring
 
-- List of configured providers
-- For each provider:
-  - Connection settings (credentials via Secrets)
-  - Scope (which sites/tenants use this provider)
-  - Test connection button
-- Add new provider configurations
+The Execution view is upgraded from a static table to a "Live Terminal" experience:
+- **Progress Stepper**: Visual breadcrumbs of where the workflow is (Step 1 of 5).
+- **Log Stream**: Real-time output from Netmiko/Napalm/Ansible.
+- **Rendered Output**: View the actual J2 config sent to the device side-by-side with the live log.
+- **Diff View**: Automatic "Before vs After" configuration comparison.
 
-## Automation → Git Sync
+---
 
-Manage Git integration for version control.
+## 7. IDE Experience (GraphiQL Style)
 
-- Connect Git repositories
-- Import: Pull Tasks, Implementations, Workflows from Git
-- Export: Push UI-created content to Git
-- Sync status and history
-- Conflict resolution UI
-
-## Automation → Lifecycle
-
-Pre-built workflows for common lifecycle operations.
-
-- **Device Onboarding**:
-  - Discovery job creation and execution
-  - Bulk import from CSV
-  - Onboarding workflow configuration
-  - View discovered devices and import status
-
-- **Backups**:
-  - View backup history per device
-  - One-click restore interface
-  - Backup scheduling and automation
-  - Backup validation and integrity checks
-
-- **Upgrades**:
-  - Create upgrade plans (query Device Lifecycle Management for EoL/CVE data)
-  - Schedule upgrades
-  - Monitor upgrade progress
-  - View upgrade history and rollback options
-
-- **Inventory Sync**:
-  - Configure sync schedules
-  - View sync history
-  - Compare Nautobot data vs. live device facts
-  - Resolve inventory discrepancies
-
-## Automation → Compliance
-
-Policy checks and remediation workflows.
-
-- **Policy Checks**:
-  - CRUD policy check definitions (as Tasks)
-  - Test checks against devices
-  - View check library (filter by standard, severity, etc.)
-
-- **Compliance Audits**:
-  - Run compliance audits (on-demand or scheduled)
-  - View compliance status dashboard
-  - Filter by device, site, compliance standard
-  - Generate compliance reports
-
-- **Remediation**:
-  - View failed compliance checks
-  - One-click remediation (execute remediation Workflow)
-  - Track remediation history
-  - Approve/reject remediation actions
-
-## Automation → Security
-
-Integration with Device Lifecycle Management for vulnerability data.
-
-- **Vulnerabilities** (data from Device Lifecycle Management):
-  - View device vulnerability status
-  - CVE details and risk scores
-  - Prioritized remediation recommendations
-  - Link to remediation Workflows
-
-- **Risk Scoring**:
-  - View device risk scores (CVE severity + network context)
-  - Risk score calculation details
-  - Risk-based prioritization dashboard
-  - Risk trend analysis
-
-- **Session Audit**:
-  - View terminal session records
-  - Search sessions by device, user, date
-  - Review command history
-  - Export session logs for compliance
+The Template IDE remains the primary tool for J2, but is enhanced with:
+- **Schema Explorer**: Sidebar showing available variables from the Task definition.
+- **Live Device Context**: Select a real device to pull its facts/GraphQL data into the preview pane.
+- **One-Click Save**: Instantly updates the Task Implementation without leaving the IDE.

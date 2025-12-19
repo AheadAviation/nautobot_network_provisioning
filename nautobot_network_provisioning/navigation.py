@@ -9,6 +9,18 @@ menu_items = (
         weight=600,
         groups=(
             NavMenuGroup(
+                name="Dashboard",
+                weight=50,
+                items=(
+                    NavMenuItem(
+                        link="plugins:nautobot_network_provisioning:home",
+                        name="Home",
+                        weight=10,
+                        permissions=["nautobot_network_provisioning.view_taskdefinition"],
+                    ),
+                ),
+            ),
+            NavMenuGroup(
                 name="Authoring",
                 weight=100,
                 items=(
@@ -25,18 +37,6 @@ menu_items = (
                         ),
                     ),
                     NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:taskimplementation_list",
-                        name="Task Implementations",
-                        weight=6,
-                        permissions=["nautobot_network_provisioning.view_taskimplementation"],
-                        buttons=(
-                            NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:taskimplementation_add",
-                                permissions=["nautobot_network_provisioning.add_taskimplementation"],
-                            ),
-                        ),
-                    ),
-                    NavMenuItem(
                         link="plugins:nautobot_network_provisioning:workflow_list",
                         name="Workflows",
                         weight=20,
@@ -45,42 +45,6 @@ menu_items = (
                             NavMenuAddButton(
                                 link="plugins:nautobot_network_provisioning:workflow_add",
                                 permissions=["nautobot_network_provisioning.add_workflow"],
-                            ),
-                        ),
-                    ),
-                    NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:workflowstep_list",
-                        name="Workflow Steps",
-                        weight=25,
-                        permissions=["nautobot_network_provisioning.view_workflowstep"],
-                        buttons=(
-                            NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:workflowstep_add",
-                                permissions=["nautobot_network_provisioning.add_workflowstep"],
-                            ),
-                        ),
-                    ),
-                    NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:provider_list",
-                        name="Providers",
-                        weight=30,
-                        permissions=["nautobot_network_provisioning.view_provider"],
-                        buttons=(
-                            NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:provider_add",
-                                permissions=["nautobot_network_provisioning.add_provider"],
-                            ),
-                        ),
-                    ),
-                    NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:providerconfig_list",
-                        name="Provider Configs",
-                        weight=40,
-                        permissions=["nautobot_network_provisioning.view_providerconfig"],
-                        buttons=(
-                            NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:providerconfig_add",
-                                permissions=["nautobot_network_provisioning.add_providerconfig"],
                             ),
                         ),
                     ),
@@ -97,16 +61,28 @@ menu_items = (
                         ),
                     ),
                     NavMenuItem(
-                        link="plugins:nautobot_network_provisioning:requestformfield_list",
-                        name="Request Form Fields",
+                        link="plugins:nautobot_network_provisioning:template_ide",
+                        name="Template IDE",
                         weight=60,
-                        permissions=["nautobot_network_provisioning.view_requestformfield"],
-                        buttons=(
-                            NavMenuAddButton(
-                                link="plugins:nautobot_network_provisioning:requestformfield_add",
-                                permissions=["nautobot_network_provisioning.add_requestformfield"],
-                            ),
-                        ),
+                        permissions=["nautobot_network_provisioning.view_taskimplementation"],
+                    ),
+                ),
+            ),
+            NavMenuGroup(
+                name="Integrations",
+                weight=210,
+                items=(
+                    NavMenuItem(
+                        link="plugins:nautobot_network_provisioning:provider_list",
+                        name="Connection Providers",
+                        weight=10,
+                        permissions=["nautobot_network_provisioning.view_provider"],
+                    ),
+                    NavMenuItem(
+                        link="extras:gitrepository_list",
+                        name="Git Repositories",
+                        weight=20,
+                        permissions=["extras.view_gitrepository"],
                     ),
                 ),
             ),
@@ -131,6 +107,36 @@ menu_items = (
                         name="Executions",
                         weight=10,
                         permissions=["nautobot_network_provisioning.view_execution"],
+                    ),
+                ),
+            ),
+            NavMenuGroup(
+                name="Maintenance",
+                weight=300,
+                items=(
+                    NavMenuItem(
+                        link="plugins:nautobot_network_provisioning:taskimplementation_list",
+                        name="Raw Implementations",
+                        weight=5,
+                        permissions=["nautobot_network_provisioning.view_taskimplementation"],
+                    ),
+                    NavMenuItem(
+                        link="plugins:nautobot_network_provisioning:workflowstep_list",
+                        name="Raw Workflow Steps",
+                        weight=10,
+                        permissions=["nautobot_network_provisioning.view_workflowstep"],
+                    ),
+                    NavMenuItem(
+                        link="plugins:nautobot_network_provisioning:requestformfield_list",
+                        name="Raw Form Fields",
+                        weight=15,
+                        permissions=["nautobot_network_provisioning.view_requestformfield"],
+                    ),
+                    NavMenuItem(
+                        link="extras:job_list",
+                        name="System Jobs",
+                        weight=20,
+                        permissions=["extras.view_job"],
                     ),
                 ),
             ),

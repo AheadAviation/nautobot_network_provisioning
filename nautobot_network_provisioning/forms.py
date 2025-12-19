@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from django import forms
+from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.forms import (
     DynamicModelChoiceField,
     DynamicModelMultipleChoiceField,
@@ -11,8 +12,9 @@ from nautobot.apps.forms import (
     NautobotModelForm,
     TagFilterField,
 )
-from nautobot.dcim.models import Manufacturer, Platform
-from nautobot.extras.models import SecretsGroup
+from nautobot.dcim.models import Manufacturer, Platform, SoftwareVersion, Location
+from nautobot.extras.models import SecretsGroup, Tag
+from nautobot.tenancy.models import Tenant
 
 from nautobot_network_provisioning.models import (
     Execution,
@@ -69,17 +71,11 @@ class TaskImplementationForm(NautobotModelForm):
     )
     provider_config = DynamicModelChoiceField(queryset=ProviderConfig.objects.all(), required=False)
     software_versions = DynamicModelMultipleChoiceField(
-        queryset=None,
+        queryset=SoftwareVersion.objects.all(),
         required=False,
         query_params={"platform_id": "$platform"},
         help_text="Optional: restrict to specific SoftwareVersion records; leave empty for all versions.",
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from nautobot.dcim.models import SoftwareVersion
-
-        self.fields["software_versions"].queryset = SoftwareVersion.objects.all()
 
     class Meta:
         model = TaskImplementation
@@ -269,22 +265,11 @@ class ProviderConfigForm(NautobotModelForm):
     secrets_group = DynamicModelChoiceField(queryset=SecretsGroup.objects.all(), required=False, label="Secrets Group")
     settings = forms.JSONField(required=False, widget=forms.Textarea(attrs={"class": "form-control", "rows": 8}))
 
-    scope_locations = DynamicModelMultipleChoiceField(queryset=None, required=False, label="Locations")
-    scope_tenants = DynamicModelMultipleChoiceField(queryset=None, required=False, label="Tenants")
-    scope_tags = DynamicModelMultipleChoiceField(queryset=None, required=False, label="Tags")
+    scope_locations = DynamicModelMultipleChoiceField(queryset=Location.objects.all(), required=False, label="Locations")
+    scope_tenants = DynamicModelMultipleChoiceField(queryset=Tenant.objects.all(), required=False, label="Tenants")
+    scope_tags = DynamicModelMultipleChoiceField(queryset=Tag.objects.all(), required=False, label="Tags")
     # Explicit tags field to avoid ModelForm metaclass trying to build a formfield from TaggableManager too early in startup.
-    tags = DynamicModelMultipleChoiceField(queryset=None, required=False, label="Tags")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from nautobot.dcim.models import Location
-        from nautobot.tenancy.models import Tenant
-        from nautobot.extras.models import Tag
-
-        self.fields["scope_locations"].queryset = Location.objects.all()
-        self.fields["scope_tenants"].queryset = Tenant.objects.all()
-        self.fields["scope_tags"].queryset = Tag.objects.all()
-        self.fields["tags"].queryset = Tag.objects.all()
+    tags = DynamicModelMultipleChoiceField(queryset=Tag.objects.all(), required=False, label="Tags")
 
     class Meta:
         model = ProviderConfig
@@ -351,14 +336,15 @@ class RequestFormFilterForm(NautobotFilterForm):
 
 class RequestFormFieldForm(NautobotModelForm):
     form = DynamicModelChoiceField(queryset=RequestForm.objects.all())
-    object_type = DynamicModelChoiceField(queryset=None, required=False, label="Object Type")
+    object_type = DynamicModelChoiceField(queryset=ContentType.objects.all().order_by("app_label", "model"), required=False, label="Object Type")
     depends_on = DynamicModelChoiceField(queryset=RequestFormField.objects.all(), required=False, label="Depends On")
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from django.contrib.contenttypes.models import ContentType
-
-        self.fields["object_type"].queryset = ContentType.objects.all().order_by("app_label", "model")
+    lookup_type = forms.ChoiceField(
+        choices=RequestFormField.LookupTypeChoices.choices,
+        required=False,
+        initial=RequestFormField.LookupTypeChoices.MANUAL,
+        widget=forms.Select(attrs={'class': 'form-control', 'onchange': 'toggleLookupFields(this.value)'})
+    )
 
     class Meta:
         model = RequestFormField
@@ -367,6 +353,8 @@ class RequestFormFieldForm(NautobotModelForm):
             "order",
             "field_name",
             "field_type",
+            "lookup_type",
+            "lookup_config",
             "label",
             "help_text",
             "required",
@@ -380,6 +368,29 @@ class RequestFormFieldForm(NautobotModelForm):
             "map_to",
             "tags",
         ]
+        widgets = {
+            "queryset_filter": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
+            "lookup_config": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
+            "default_value": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "validation_rules": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "choices": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        from django.utils.safestring import mark_safe
+        super().__init__(*args, **kwargs)
+        self.fields['lookup_type'].help_text = mark_safe("""
+            <b>Manual</b>: Use raw JSON in 'Queryset Filter'.<br>
+            <b>Location by Type</b>: Set {'type': 'Building'} in config.<br>
+            <b>VLAN by Tag</b>: Set {'tag_field': 'service_type'} in config.<br>
+            <b>Task by Category</b>: Set {'category': 'Service Catalog'} in config.
+        """)
+        
+        # Add JavaScript to handle UI logic
+        self.helper.form_tag = False
+        
+    class Media:
+        js = ('nautobot_network_provisioning/js/form-builder.js',)
 
 
 class RequestFormFieldBulkEditForm(NautobotBulkEditForm):

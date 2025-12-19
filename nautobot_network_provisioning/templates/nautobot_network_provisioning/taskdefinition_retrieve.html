@@ -1,0 +1,113 @@
+{% extends 'generic/object_retrieve.html' %}
+{% load helpers %}
+
+{% block content_left_page %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Task Definition</strong>
+        </div>
+        <table class="table table-hover panel-body attr-table">
+            <tr>
+                <td>Name</td>
+                <td>{{ object.name }}</td>
+            </tr>
+            <tr>
+                <td>Slug</td>
+                <td><code>{{ object.slug }}</code></td>
+            </tr>
+            <tr>
+                <td>Category</td>
+                <td>{{ object.category|default:"None" }}</td>
+            </tr>
+            <tr>
+                <td>Description</td>
+                <td>{{ object.description|placeholder }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Input Schema (JSON)</strong>
+        </div>
+        <div class="panel-body">
+            <pre>{{ object.input_schema|render_json }}</pre>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Output Schema (JSON)</strong>
+        </div>
+        <div class="panel-body">
+            <pre>{{ object.output_schema|render_json }}</pre>
+        </div>
+    </div>
+{% endblock content_left_page %}
+
+{% block content_right_page %}
+    {% include 'nautobot_network_provisioning/inc/task_usage_table.html' %}
+{% endblock content_right_page %}
+
+{% block content_full_width_page %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Platform Implementations</strong>
+            <div class="pull-right">
+                <a href="{% url 'plugins:nautobot_network_provisioning:taskimplementation_add' %}?task={{ object.pk }}" class="btn btn-xs btn-primary">
+                    <i class="mdi mdi-plus"></i> Add Implementation
+                </a>
+            </div>
+        </div>
+        <div class="panel-body">
+            <p class="text-muted small">Platform-specific code used to execute this task across different network vendors.</p>
+            
+            <div class="row">
+                {% for impl in object.implementations.all %}
+                    <div class="col-md-4">
+                        <div class="panel panel-default" style="border-top: 3px solid #007bff;">
+                            <div class="panel-body">
+                                <h4 style="margin-top: 0;">{{ impl.manufacturer }} {{ impl.platform|default:"" }}</h4>
+                                <p class="small text-muted">Type: <strong>{{ impl.get_implementation_type_display }}</strong></p>
+                                
+                                <div style="background: #272822; color: #f8f8f2; padding: 10px; border-radius: 4px; height: 100px; overflow: hidden; margin-bottom: 15px; position: relative;">
+                                    <pre style="background: transparent; border: none; color: inherit; padding: 0; margin: 0; font-size: 10px;">{{ impl.template_content|truncatechars:200 }}</pre>
+                                    <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, #272822);"></div>
+                                </div>
+                                
+                                <div class="btn-group btn-group-justified">
+                                    <a href="{% url 'plugins:nautobot_network_provisioning:template_ide' pk=impl.pk %}" class="btn btn-sm btn-info">
+                                        <i class="mdi mdi-code-braces"></i> IDE
+                                    </a>
+                                    <a href="{{ impl.get_absolute_url }}" class="btn btn-sm btn-default">
+                                        <i class="mdi mdi-eye"></i> View
+                                    </a>
+                                    <a href="{% url 'plugins:nautobot_network_provisioning:taskimplementation_edit' pk=impl.pk %}?return_url={{ object.get_absolute_url }}" class="btn btn-sm btn-warning">
+                                        <i class="mdi mdi-pencil"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="col-md-12">
+                        <div class="alert alert-warning">
+                            No implementations found for this task. It cannot be executed until at least one platform is defined.
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% if object.documentation %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Documentation</strong>
+        </div>
+        <div class="panel-body">
+            {{ object.documentation|render_markdown }}
+        </div>
+    </div>
+    {% endif %}
+{% endblock content_full_width_page %}

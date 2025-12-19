@@ -1,0 +1,114 @@
+{% extends "generic/object_retrieve.html" %}
+{% load static %}
+
+{% block content_left_page %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Execution Details</strong>
+        </div>
+        <table class="table table-hover panel-body attr-table">
+            <tr>
+                <td>Status</td>
+                <td>
+                    {% if object.status == 'completed' %}
+                        <span class="label label-success">{{ object.get_status_display }}</span>
+                    {% elif object.status == 'failed' %}
+                        <span class="label label-danger">{{ object.get_status_display }}</span>
+                    {% elif object.status == 'running' %}
+                        <span class="label label-primary">{{ object.get_status_display }}</span>
+                    {% else %}
+                        <span class="label label-default">{{ object.get_status_display }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Workflow</td>
+                <td><a href="{{ object.workflow.get_absolute_url }}">{{ object.workflow.name }}</a></td>
+            </tr>
+            <tr>
+                <td>Requested By</td>
+                <td>{{ object.requested_by|default:"System" }}</td>
+            </tr>
+            <tr>
+                <td>Started At</td>
+                <td>{{ object.started_at|date:"Y-m-d H:i:s"|default:"Not started" }}</td>
+            </tr>
+            <tr>
+                <td>Completed At</td>
+                <td>{{ object.completed_at|date:"Y-m-d H:i:s"|default:"In progress" }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Target Devices</strong>
+        </div>
+        <div class="panel-body">
+            {% for device in object.target_devices.all %}
+                <a href="{{ device.get_absolute_url }}" class="label label-info">{{ device.name }}</a>
+            {% empty %}
+                <span class="text-muted">No target devices specified.</span>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content_full_width_page %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Step-by-Step Output</strong>
+        </div>
+        <div class="panel-body">
+            <div class="execution-steps-container">
+                {% for step in steps %}
+                    <div class="execution-step-result" style="margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div style="background: #f8f9fa; padding: 10px 15px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>Step {{ step.order }}: {{ step.workflow_step.name|default:"Unnamed Step" }}</strong>
+                                <span class="label {% if step.status == 'completed' %}label-success{% elif step.status == 'failed' %}label-danger{% else %}label-default{% endif %} ml-2">
+                                    {{ step.get_status_display }}
+                                </span>
+                            </div>
+                            <small class="text-muted">{{ step.completed_at|timesince:step.started_at }} duration</small>
+                        </div>
+                        <div style="padding: 15px;">
+                            <ul class="nav nav-tabs" role="tablist">
+                                <li role="presentation" class="active"><a href="#logs-{{ step.pk }}" aria-controls="logs" role="tab" data-toggle="tab">Logs</a></li>
+                                {% if step.rendered_content %}
+                                    <li role="presentation"><a href="#content-{{ step.pk }}" aria-controls="content" role="tab" data-toggle="tab">Rendered Config</a></li>
+                                {% endif %}
+                                <li role="presentation"><a href="#data-{{ step.pk }}" aria-controls="data" role="tab" data-toggle="tab">Data (I/O)</a></li>
+                            </ul>
+                            
+                            <div class="tab-content" style="padding-top: 15px;">
+                                <div role="tabpanel" class="tab-pane active" id="logs-{{ step.pk }}">
+                                    <div style="background: #272822; color: #f8f8f2; padding: 15px; border-radius: 4px; font-family: monospace; max-height: 400px; overflow-y: auto; white-space: pre-wrap;">{{ step.logs|default:"No logs captured." }}</div>
+                                </div>
+                                {% if step.rendered_content %}
+                                    <div role="tabpanel" class="tab-pane" id="content-{{ step.pk }}">
+                                        <div style="background: #f8f9fa; padding: 15px; border: 1px solid #eee; border-radius: 4px; font-family: monospace; max-height: 400px; overflow-y: auto; white-space: pre-wrap;">{{ step.rendered_content }}</div>
+                                    </div>
+                                {% endif %}
+                                <div role="tabpanel" class="tab-pane" id="data-{{ step.pk }}">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h5>Inputs</h5>
+                                            <pre style="font-size: 11px;">{{ step.inputs|render_json }}</pre>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h5>Outputs</h5>
+                                            <pre style="font-size: 11px;">{{ step.outputs|render_json }}</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="alert alert-info">No steps have been recorded for this execution yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

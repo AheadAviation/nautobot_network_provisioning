@@ -28,13 +28,51 @@ class Jinja2EditorWidget(forms.Textarea):
         """Render textarea with a small header."""
         textarea_html = super().render(name, value, attrs, renderer)
         
-        # Add a helpful header (keep lightweight; full IDE can come later).
+        # Try to find the PK from the attrs or value
+        pk = None
+        if attrs and 'id' in attrs:
+            # This is a bit hacky, but often the form instance is available 
+            # if we are in a ModelForm context.
+            pass
+
+        # Build the IDE link. If we can't find a PK, just link to the main IDE page.
+        if pk:
+            ide_link = reverse("plugins:nautobot_network_provisioning:template_ide", kwargs={"pk": pk})
+        else:
+            # We'll use a placeholder and let JS fix it if possible, 
+            # but for now, we'll try to extract PK from the current URL if we're on an edit page.
+            ide_link = reverse("plugins:nautobot_network_provisioning:template_ide")
+        
         header_html = f'''
         <div class="d-flex justify-content-between align-items-center mb-2">
             <small class="text-muted">
                 <i class="mdi mdi-code-braces"></i> Jinja2 Template
             </small>
+            <a href="{ide_link}" class="btn btn-xs btn-outline-info" id="btn-open-ide-{name}">
+                <i class="mdi mdi-open-in-new"></i> Open Template IDE
+            </a>
         </div>
+        <script>
+            (function() {{
+                const btn = document.getElementById('btn-open-ide-{name}');
+                if (btn) {{
+                    // Try to extract UUID from current URL if it's an edit page
+                    const path = window.location.pathname;
+                    const match = path.match(/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})/i);
+                    if (match) {{
+                        const uuid = match[0];
+                        // If the button link doesn't already have the UUID, append it
+                        if (btn.href.endsWith('/ide/')) {{
+                            btn.href = btn.href + uuid + '/';
+                        }} else if (!btn.href.includes(uuid)) {{
+                            // Force update it if it's wrong
+                            const base = btn.href.split('/ide/')[0];
+                            btn.href = base + '/ide/' + uuid + '/';
+                        }}
+                    }}
+                }}
+            }})();
+        </script>
         '''
         
         return mark_safe(header_html + textarea_html)

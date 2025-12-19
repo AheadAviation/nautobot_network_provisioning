@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>Automation Hub</h1>
+            <p class="text-muted">The central workspace for network automation. Design, orchestrate, and monitor your network services.</p>
+        </div>
+    </div>
+
+    <!-- Hub Navigation Tabs -->
+    <ul class="nav nav-tabs" role="tablist" style="margin-bottom: 20px;">
+        <li role="presentation" class="active"><a href="#catalog" aria-controls="catalog" role="tab" data-toggle="tab"><i class="mdi mdi-cube-outline"></i> Task Catalog</a></li>
+        <li role="presentation"><a href="#workflows" aria-controls="workflows" role="tab" data-toggle="tab"><i class="mdi mdi-sitemap"></i> Workflows</a></li>
+        <li role="presentation"><a href="#executions" aria-controls="executions" role="tab" data-toggle="tab"><i class="mdi mdi-history"></i> Recent Activity</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Task Catalog Hub -->
+        <div role="tabpanel" class="tab-pane active" id="catalog">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <strong>Service & Task Catalog</strong>
+                            <div class="pull-right">
+                                <a href="{% url 'plugins:nautobot_network_provisioning:taskdefinition_add' %}" class="btn btn-xs btn-primary">
+                                    <i class="mdi mdi-plus"></i> New Task
+                                </a>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="row">
+                                {% regroup tasks by category as category_list %}
+                                {% for category in category_list %}
+                                    <div class="col-md-12">
+                                        <h4 class="page-header" style="margin-top: 10px; color: #666;">{{ category.grouper|default:"Uncategorized" }}</h4>
+                                    </div>
+                                    {% for task in category.list %}
+                                        <div class="col-md-3">
+                                            <div class="panel panel-default" style="border-left: 4px solid #007bff; transition: transform 0.2s;">
+                                                <div class="panel-body">
+                                                    <h4 style="margin-top: 0;"><a href="{{ task.get_absolute_url }}">{{ task.name }}</a></h4>
+                                                    <p class="small text-muted" style="height: 40px; overflow: hidden;">{{ task.description|default:"No description provided." }}</p>
+                                                    <hr style="margin: 10px 0;">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <span class="badge">{{ task.implementations.count }} Platforms</span>
+                                                        <a href="{{ task.get_absolute_url }}" class="btn btn-xs btn-default pull-right">Manage</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% empty %}
+                                    <div class="col-md-12 text-center" style="padding: 40px;">
+                                        <i class="mdi mdi-cube-off-outline" style="font-size: 48px; color: #eee;"></i>
+                                        <p class="text-muted">No tasks found. Start by adding one to your catalog.</p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workflows Hub -->
+        <div role="tabpanel" class="tab-pane" id="workflows">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <strong>Workflow Orchestration</strong>
+                            <div class="pull-right">
+                                <a href="{% url 'plugins:nautobot_network_provisioning:workflow_add' %}" class="btn btn-xs btn-primary">
+                                    <i class="mdi mdi-plus"></i> New Workflow
+                                </a>
+                            </div>
+                        </div>
+                        <table class="table table-hover panel-body">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Steps</th>
+                                    <th>Linked Forms</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for wf in active_workflows %}
+                                <tr>
+                                    <td><a href="{{ wf.get_absolute_url }}"><strong>{{ wf.name }}</strong></a></td>
+                                    <td>{% if wf.enabled %}<span class="label label-success">Active</span>{% else %}<span class="label label-danger">Disabled</span>{% endif %}</td>
+                                    <td><span class="badge">{{ wf.steps.count }}</span></td>
+                                    <td><span class="badge">{{ wf.request_forms.count }}</span></td>
+                                    <td>
+                                        <a href="{{ wf.get_absolute_url }}" class="btn btn-xs btn-info">Orchestrate</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Executions Hub -->
+        <div role="tabpanel" class="tab-pane" id="executions">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <strong>Recent Activity</strong>
+                        </div>
+                        <table class="table table-hover panel-body">
+                            <thead>
+                                <tr>
+                                    <th>Execution</th>
+                                    <th>Workflow</th>
+                                    <th>Status</th>
+                                    <th>User</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exe in recent_executions %}
+                                <tr>
+                                    <td><a href="{{ exe.get_absolute_url }}"><code>{{ exe.pk|truncatechars:8 }}</code></a></td>
+                                    <td>{{ exe.workflow.name }}</td>
+                                    <td>
+                                        {% if exe.status == 'completed' %}
+                                            <span class="label label-success">{{ exe.get_status_display }}</span>
+                                        {% elif exe.status == 'failed' %}
+                                            <span class="label label-danger">{{ exe.get_status_display }}</span>
+                                        {% else %}
+                                            <span class="label label-primary">{{ exe.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ exe.requested_by|default:"System" }}</td>
+                                    <td>{{ exe.created|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="panel-footer text-center">
+                            <a href="{% url 'plugins:nautobot_network_provisioning:execution_list' %}" class="btn btn-sm btn-default">View Full History</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <a href="{% url 'plugins:nautobot_network_provisioning:portal' %}" class="btn btn-block btn-info p-4">
+                <i class="mdi mdi-shopping" style="font-size: 24px;"></i><br>Service Portal
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'plugins:nautobot_network_provisioning:template_ide' %}" class="btn btn-block btn-default p-4">
+                <i class="mdi mdi-code-braces" style="font-size: 24px;"></i><br>Template IDE
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'plugins:nautobot_network_provisioning:provider_list' %}" class="btn btn-block btn-default p-4">
+                <i class="mdi mdi-server-network" style="font-size: 24px;"></i><br>Providers
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'extras:gitrepository_list' %}" class="btn btn-block btn-success p-4">
+                <i class="mdi mdi-git" style="font-size: 24px;"></i><br>GitOps Sync
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

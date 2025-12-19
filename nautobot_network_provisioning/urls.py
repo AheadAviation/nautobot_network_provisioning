@@ -2,6 +2,7 @@
 
 import logging
 
+from django.urls import path
 from nautobot_network_provisioning.execution_action_urls import urlpatterns as execution_action_urlpatterns
 from nautobot_network_provisioning.portal_urls import urlpatterns as portal_urlpatterns
 
@@ -25,8 +26,12 @@ try:
         RequestFormUIViewSet,
         TaskDefinitionUIViewSet,
         TaskImplementationUIViewSet,
+        TemplateIDEView,
         WorkflowStepUIViewSet,
         WorkflowUIViewSet,
+        AutomationHomeView,
+        RequestFormBuilderView,
+        WorkflowDesignerView,
     )
 
     router = NautobotUIViewSetRouter()
@@ -40,6 +45,13 @@ try:
     router.register("request-forms", RequestFormUIViewSet)
     router.register("request-form-fields", RequestFormFieldUIViewSet)
 
+    urlpatterns += [
+        path("", AutomationHomeView.as_view(), name="home"),
+        path("ide/", TemplateIDEView.as_view(), name="template_ide"),
+        path("ide/<uuid:pk>/", TemplateIDEView.as_view(), name="template_ide"),
+        path("request-forms/<uuid:pk>/builder/", RequestFormBuilderView.as_view(), name="requestform_builder"),
+        path("workflows/<uuid:pk>/designer/", WorkflowDesignerView.as_view(), name="workflow_designer"),
+    ]
     urlpatterns += router.urls
 except Exception:  # noqa: BLE001
     # Intentionally swallow to avoid breaking Nautobot startup/management commands.
