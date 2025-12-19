@@ -387,7 +387,8 @@ class RequestFormFieldForm(NautobotModelForm):
         """)
         
         # Add JavaScript to handle UI logic
-        self.helper.form_tag = False
+        if hasattr(self, "helper"):
+            self.helper.form_tag = False
         
     class Media:
         js = ('nautobot_network_provisioning/js/form-builder.js',)
