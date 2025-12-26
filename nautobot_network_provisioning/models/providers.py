@@ -1,80 +1,73 @@
-"""Provider models (driver types and instance configs) for Automation execution."""
-
-from __future__ import annotations
-
 from django.db import models
-from nautobot.apps.models import PrimaryModel
-from taggit.managers import TaggableManager
+from nautobot.core.models.generics import PrimaryModel, OrganizationalModel
+from nautobot.dcim.models import Platform, Location
+from nautobot.tenancy.models import Tenant
+from nautobot.extras.models import SecretsGroup
 
 
-class Provider(PrimaryModel):
-    """Provider driver type (e.g., netmiko, napalm, dnac, servicenow)."""
-
-    # Override PrimaryModel.tags to avoid reverse accessor collisions with core models named "Provider" (e.g. circuits.Provider).
-    tags = TaggableManager(through="extras.TaggedItem", blank=True, related_name="nautobot_network_provisioning_provider_set")
+class AutomationProvider(PrimaryModel):
+    """An external automation system (Netmiko, NAPALM, DNAC)."""
 
     name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
     driver_class = models.CharField(
         max_length=255,
-        help_text="Python dotted path to the provider driver class.",
-    )
-    description = models.TextField(blank=True)
-    capabilities = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="List of capability strings (e.g., ['render', 'diff', 'apply']).",
+        help_text="Python path to the driver class (e.g. 'nautobot_network_provisioning.services.providers.netmiko_cli.NetmikoCLIProvider').",
     )
     supported_platforms = models.ManyToManyField(
-        to="dcim.Platform",
-        blank=True,
+        to=Platform,
         related_name="automation_providers",
+        blank=True,
     )
+    description = models.CharField(max_length=200, blank=True)
     enabled = models.BooleanField(default=True)
 
-    natural_key_field_names = ["name"]
-
     class Meta:
-        ordering = ["name"]
-        verbose_name = "Provider"
-        verbose_name_plural = "Providers"
+        ordering = ("name",)
 
-    def __str__(self) -> str:  # pragma: no cover
+    def __str__(self):
         return self.name
 
 
-class ProviderConfig(PrimaryModel):
-    """Configured provider instance (scoped config + secrets references)."""
+class AutomationProviderConfig(PrimaryModel):
+    """A specific instance/configuration of a provider (e.g. 'Global Netmiko')."""
 
-    provider = models.ForeignKey(to=Provider, on_delete=models.PROTECT, related_name="configs")
-    name = models.CharField(max_length=100, help_text="Instance name (e.g., 'prod-dnac', 'campus-cli').")
-    enabled = models.BooleanField(default=True)
-
-    # Nautobot 2.3+ uses Locations instead of Sites.
-    scope_locations = models.ManyToManyField(to="dcim.Location", blank=True, related_name="automation_provider_configs")
-    scope_tenants = models.ManyToManyField(to="tenancy.Tenant", blank=True, related_name="automation_provider_configs")
-    scope_tags = models.ManyToManyField(to="extras.Tag", blank=True, related_name="automation_provider_configs")
-
-    secrets_group = models.ForeignKey(
-        to="extras.SecretsGroup",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="+",
-        help_text="Credentials live in Nautobot Secrets; reference a SecretsGroup here.",
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
+    provider = models.ForeignKey(
+        to=AutomationProvider,
+        on_delete=models.PROTECT,
+        related_name="configs",
     )
-    settings = models.JSONField(default=dict, blank=True)
-
-    natural_key_field_names = ["provider", "name"]
+    parameters = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Specific connection parameters (endpoints, options).",
+    )
+    secrets_group = models.ForeignKey(
+        to=SecretsGroup,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
+    
+    # Scoping
+    scope_locations = models.ManyToManyField(
+        to=Location,
+        related_name="automation_provider_configs",
+        blank=True,
+    )
+    scope_tenants = models.ManyToManyField(
+        to=Tenant,
+        related_name="automation_provider_configs",
+        blank=True,
+    )
+    
+    enabled = models.BooleanField(default=True)
+    description = models.CharField(max_length=200, blank=True)
 
     class Meta:
-        ordering = ["provider__name", "name"]
-        constraints = [
-            models.UniqueConstraint(fields=["provider", "name"], name="uniq_providerconfig_provider_name"),
-        ]
-        verbose_name = "Provider Config"
-        verbose_name_plural = "Provider Configs"
+        ordering = ("name",)
 
-    def __str__(self) -> str:  # pragma: no cover
-        return f"{self.provider.name}: {self.name}"
-
-
+    def __str__(self):
+        return f"{self.provider.name} - {self.name}"

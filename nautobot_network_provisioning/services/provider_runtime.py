@@ -1,54 +1,57 @@
-"""Provider runtime: load/select ProviderConfig and execute diff/apply operations.
-
-Phase 4 (Providers v1).
-"""
-
 from __future__ import annotations
-
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import import_module
-from typing import Any, Protocol
+from typing import Any, Protocol, Dict, Optional
+from ..models import AutomationProvider, AutomationProviderConfig
 
-from nautobot_network_provisioning.models import Provider, ProviderConfig
+
+@dataclass
+class ProviderOperationResult:
+    """Standardized result of a provider operation."""
+    ok: bool
+    details: Dict[str, Any] = field(default_factory=dict)
+    logs: str = ""
+    diff: str = ""
 
 
 class ProviderError(RuntimeError):
     """Base provider runtime error."""
+    pass
 
 
 class ProviderOperationNotSupported(ProviderError):
     """Provider doesn't implement a requested operation."""
-
-
-@dataclass(frozen=True)
-class ProviderOperationResult:
-    """Normalized provider operation result."""
-
-    ok: bool
-    details: dict[str, Any]
-    logs: str = ""
+    pass
 
 
 class ProviderDriver(Protocol):
     """Runtime provider driver interface."""
-
-    def validate_target(self, *, target: Any) -> None:  # noqa: ANN401
-        ...
-
-    def diff(self, *, target: Any, rendered_content: str, context: dict[str, Any]) -> ProviderOperationResult:  # noqa: ANN401
-        ...
-
-    def apply(self, *, target: Any, rendered_content: str, context: dict[str, Any]) -> ProviderOperationResult:  # noqa: ANN401
-        ...
+    def validate_target(self, *, target: Any) -> None: ...
+    def diff(self, *, target: Any, rendered_content: str, context: dict) -> ProviderOperationResult: ...
+    def apply(self, *, target: Any, rendered_content: str, context: dict) -> ProviderOperationResult: ...
 
 
-def load_provider_driver(provider_config: ProviderConfig) -> ProviderDriver:
-    """Instantiate provider driver from Provider.driver_class."""
+class BaseProvider:
+    """Base class for all provider drivers."""
+    def __init__(self, *, provider_config: AutomationProviderConfig):
+        self.provider_config = provider_config
 
-    provider: Provider = provider_config.provider
+    def validate_target(self, *, target: Any) -> None:
+        raise NotImplementedError
+
+    def diff(self, *, target: Any, rendered_content: str, context: dict) -> ProviderOperationResult:
+        raise ProviderOperationNotSupported("Diff not supported.")
+
+    def apply(self, *, target: Any, rendered_content: str, context: dict) -> ProviderOperationResult:
+        raise NotImplementedError
+
+
+def load_provider_driver(provider_config: AutomationProviderConfig) -> ProviderDriver:
+    """Instantiate provider driver from AutomationProvider.driver_class."""
+    provider = provider_config.provider
     dotted = (provider.driver_class or "").strip()
     if not dotted or "." not in dotted:
-        raise ProviderError(f"Provider '{provider.name}' has invalid driver_class '{provider.driver_class}'.")
+        raise ProviderError(f"Provider '{provider.name}' has invalid driver_class.")
 
     module_path, attr = dotted.rsplit(".", 1)
     mod = import_module(module_path)
@@ -56,23 +59,19 @@ def load_provider_driver(provider_config: ProviderConfig) -> ProviderDriver:
     if cls is None:
         raise ProviderError(f"Provider driver class '{dotted}' not found.")
 
-    return cls(provider_config=provider_config)  # type: ignore[call-arg]
+    return cls(provider_config=provider_config)
 
 
-def _score_provider_config(*, provider_config: ProviderConfig, device: Any) -> int:  # noqa: ANN401
-    """Score ProviderConfig match for a given Device.
-
-    Higher score wins. Empty scopes match all (score 0).
-    """
-
+def _score_provider_config(*, provider_config: AutomationProviderConfig, device: Any) -> int:
+    """Score matching for a device. Higher score wins."""
     score = 0
     if not device:
         return score
 
-    # Locations (Nautobot 2.3+)
+    # Locations
     location = getattr(device, "location", None)
     if provider_config.scope_locations.exists():
-        if location and provider_config.scope_locations.filter(pk=getattr(location, "pk", None)).exists():
+        if location and provider_config.scope_locations.filter(pk=location.pk).exists():
             score += 30
         else:
             return -1
@@ -80,38 +79,24 @@ def _score_provider_config(*, provider_config: ProviderConfig, device: Any) -> i
     # Tenants
     tenant = getattr(device, "tenant", None)
     if provider_config.scope_tenants.exists():
-        if tenant and provider_config.scope_tenants.filter(pk=getattr(tenant, "pk", None)).exists():
+        if tenant and provider_config.scope_tenants.filter(pk=tenant.pk).exists():
             score += 20
         else:
             return -1
 
-    # Tags
-    if provider_config.scope_tags.exists():
-        device_tags = getattr(device, "tags", None)
-        if device_tags is None:
-            return -1
-        if provider_config.scope_tags.filter(pk__in=device_tags.values_list("pk", flat=True)).exists():
-            score += 10
-        else:
-            return -1
-
-    # Platforms (via Provider.supported_platforms)
+    # Platforms
     platform = getattr(device, "platform", None)
     if platform and provider_config.provider.supported_platforms.exists():
-        if provider_config.provider.supported_platforms.filter(pk=getattr(platform, "pk", None)).exists():
+        if provider_config.provider.supported_platforms.filter(pk=platform.pk).exists():
             score += 5
-        else:
-            # Don't hard-fail; let it be eligible if no better match exists.
-            score += 0
 
     return score
 
 
-def select_provider_config(*, device: Any) -> ProviderConfig | None:  # noqa: ANN401
-    """Select best ProviderConfig for a device based on scope matching."""
-
-    qs = ProviderConfig.objects.select_related("provider", "secrets_group").filter(enabled=True, provider__enabled=True)
-    best: ProviderConfig | None = None
+def select_provider_config(*, device: Any) -> AutomationProviderConfig | None:
+    """Select best AutomationProviderConfig for a device."""
+    qs = AutomationProviderConfig.objects.filter(enabled=True, provider__enabled=True)
+    best: AutomationProviderConfig | None = None
     best_score = -1
     for pc in qs:
         score = _score_provider_config(provider_config=pc, device=device)
@@ -119,5 +104,3 @@ def select_provider_config(*, device: Any) -> ProviderConfig | None:  # noqa: AN
             best_score = score
             best = pc
     return best
-
-

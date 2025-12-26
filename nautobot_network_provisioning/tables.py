@@ -1,172 +1,144 @@
-"""Tables for the Network Provisioning (Automation) app."""
+"""
+Table definitions for Network Provisioning Plugin v2.0
 
+Defines django-tables2 tables for list views in the Nautobot UI.
+"""
 import django_tables2 as tables
-from nautobot.apps.tables import BaseTable, ButtonsColumn, ToggleColumn
-
-from nautobot_network_provisioning.models import (
-    Execution,
-    Provider,
-    ProviderConfig,
-    RequestForm,
-    RequestFormField,
-    TaskDefinition,
-    TaskImplementation,
-    Workflow,
-    WorkflowStep,
+from django.utils.html import format_html
+from nautobot.apps.tables import BaseTable, ButtonsColumn
+from .models import (
+    TaskIntent, 
+    TaskStrategy,
+    Workflow, 
+    RequestForm, 
+    Execution, 
+    AutomationProvider, 
+    AutomationProviderConfig, 
+    Folder
 )
 
 
-class TaskDefinitionTable(BaseTable):
-    pk = ToggleColumn()
-    name = tables.LinkColumn()
-    slug = tables.Column()
-    category = tables.Column()
-    vendors = tables.TemplateColumn(
-        template_code='{% for m in record.implementations.all %}{{ m.manufacturer }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}',
-        orderable=False
-    )
-    actions = ButtonsColumn(TaskDefinition)
-
-    class Meta(BaseTable.Meta):
-        model = TaskDefinition
-        fields = ("pk", "name", "slug", "category", "vendors", "actions")
-        default_columns = fields
-
-
-class TaskImplementationTable(BaseTable):
-    pk = ToggleColumn()
-    task = tables.LinkColumn()
-    name = tables.LinkColumn()
-    manufacturer = tables.LinkColumn()
-    platform = tables.LinkColumn()
-    software_versions = tables.Column(verbose_name="Software Versions", accessor="software_versions", orderable=False)
-    implementation_type = tables.Column()
-    enabled = tables.BooleanColumn()
-    actions = ButtonsColumn(TaskImplementation)
-
-    class Meta(BaseTable.Meta):
-        model = TaskImplementation
-        fields = (
-            "pk",
-            "task",
-            "name",
-            "manufacturer",
-            "platform",
-            "software_versions",
-            "priority",
-            "implementation_type",
-            "enabled",
-            "actions",
+class StudioLinkColumn(tables.Column):
+    """Custom column that links to the Task Studio editor."""
+    
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("verbose_name", "Studio")
+        kwargs.setdefault("orderable", False)
+        kwargs.setdefault("empty_values", ())
+        super().__init__(*args, **kwargs)
+    
+    def render(self, record):
+        from django.urls import reverse
+        url = reverse("plugins:nautobot_network_provisioning:task_studio_v2_edit", kwargs={"pk": record.pk})
+        return format_html(
+            '<a href="{}" class="btn btn-xs btn-primary" title="Edit in Studio v2">'
+            '<i class="mdi mdi-pencil-box-outline"></i> Studio'
+            '</a>',
+            url
         )
-        default_columns = ("pk", "task", "name", "manufacturer", "platform", "priority", "enabled", "actions")
+
+
+class TaskIntentTable(BaseTable):
+    """Table for TaskIntent list view."""
+    pk = tables.CheckBoxColumn()
+    name = tables.Column(linkify=True)
+    category = tables.Column()
+    strategy_count = tables.Column(verbose_name="Strategies", accessor="strategy_count", orderable=False)
+    input_count = tables.Column(verbose_name="Inputs", accessor="input_count", orderable=False)
+    studio = StudioLinkColumn()
+    actions = ButtonsColumn(TaskIntent)
+
+    class Meta(BaseTable.Meta):
+        model = TaskIntent
+        fields = ("pk", "name", "slug", "category", "input_count", "strategy_count", "description", "studio", "actions")
+
+
+class TaskStrategyTable(BaseTable):
+    """Table for TaskStrategy list view (the new primary implementation model)."""
+    pk = tables.CheckBoxColumn()
+    task_intent = tables.Column(linkify=True)
+    platform = tables.Column(linkify=True)
+    method = tables.Column(verbose_name="Method")
+    priority = tables.Column()
+    enabled = tables.BooleanColumn()
+    actions = ButtonsColumn(TaskStrategy)
+
+    class Meta(BaseTable.Meta):
+        model = TaskStrategy
+        fields = ("pk", "task_intent", "platform", "method", "priority", "enabled", "actions")
 
 
 class WorkflowTable(BaseTable):
-    pk = ToggleColumn()
-    name = tables.LinkColumn()
-    slug = tables.Column()
+    """Table for Workflow list view."""
+    pk = tables.CheckBoxColumn()
+    name = tables.Column(linkify=True)
     enabled = tables.BooleanColumn()
-    approval_required = tables.BooleanColumn()
-    schedule_allowed = tables.BooleanColumn()
     actions = ButtonsColumn(Workflow)
 
     class Meta(BaseTable.Meta):
         model = Workflow
-        fields = ("pk", "name", "slug", "enabled", "approval_required", "schedule_allowed", "actions")
-        default_columns = fields
-
-
-class WorkflowStepTable(BaseTable):
-    pk = ToggleColumn()
-    workflow = tables.LinkColumn()
-    name = tables.LinkColumn()
-    step_type = tables.Column()
-    order = tables.Column()
-    task = tables.LinkColumn()
-    actions = ButtonsColumn(WorkflowStep)
-
-    class Meta(BaseTable.Meta):
-        model = WorkflowStep
-        fields = ("pk", "workflow", "order", "name", "step_type", "task", "actions")
-        default_columns = fields
-
-
-class ExecutionTable(BaseTable):
-    pk = ToggleColumn()
-    workflow = tables.LinkColumn()
-    status = tables.Column()
-    created = tables.DateTimeColumn()
-    actions = ButtonsColumn(Execution)
-
-    class Meta(BaseTable.Meta):
-        model = Execution
-        fields = ("pk", "workflow", "status", "scheduled_for", "created", "actions")
-        default_columns = fields
-
-
-class ProviderTable(BaseTable):
-    pk = ToggleColumn()
-    name = tables.LinkColumn()
-    enabled = tables.BooleanColumn()
-    actions = ButtonsColumn(Provider)
-
-    class Meta(BaseTable.Meta):
-        model = Provider
-        fields = ("pk", "name", "driver_class", "enabled", "actions")
-        default_columns = ("pk", "name", "driver_class", "enabled", "actions")
-
-
-class ProviderConfigTable(BaseTable):
-    pk = ToggleColumn()
-    provider = tables.LinkColumn()
-    name = tables.LinkColumn()
-    enabled = tables.BooleanColumn()
-    actions = ButtonsColumn(ProviderConfig)
-
-    class Meta(BaseTable.Meta):
-        model = ProviderConfig
-        fields = ("pk", "provider", "name", "enabled", "actions")
-        default_columns = fields
+        fields = ("pk", "name", "description", "enabled", "actions")
 
 
 class RequestFormTable(BaseTable):
-    pk = ToggleColumn()
-    name = tables.LinkColumn()
-    slug = tables.Column()
-    workflow = tables.LinkColumn()
+    """Table for RequestForm list view."""
+    pk = tables.CheckBoxColumn()
+    name = tables.Column(linkify=True)
+    workflow = tables.Column(linkify=True)
     published = tables.BooleanColumn()
     actions = ButtonsColumn(RequestForm)
 
     class Meta(BaseTable.Meta):
         model = RequestForm
-        fields = ("pk", "name", "slug", "workflow", "published", "actions")
-        default_columns = fields
+        fields = ("pk", "name", "workflow", "published", "description", "actions")
 
 
-class RequestFormFieldTable(BaseTable):
-    pk = ToggleColumn()
-    form = tables.LinkColumn()
-    order = tables.Column()
-    field_name = tables.Column()
-    label = tables.Column()
-    field_type = tables.Column()
-    lookup = tables.TemplateColumn(
-        template_code='''
-        {% if record.lookup_type == "manual" %}
-            <span class="label label-default">Manual</span>
-        {% else %}
-            <span class="label label-info">{{ record.get_lookup_type_display }}</span>
-            <br><small class="text-muted">{{ record.lookup_config }}</small>
-        {% endif %}
-        ''',
-        verbose_name="Lookup/Filter"
-    )
-    required = tables.BooleanColumn()
-    actions = ButtonsColumn(RequestFormField)
+class ExecutionTable(BaseTable):
+    """Table for Execution list view."""
+    pk = tables.CheckBoxColumn()
+    id = tables.Column(linkify=True)
+    workflow = tables.Column(linkify=True)
+    status = tables.Column()
+    start_time = tables.DateTimeColumn()
+    actions = ButtonsColumn(Execution)
 
     class Meta(BaseTable.Meta):
-        model = RequestFormField
-        fields = ("pk", "form", "order", "field_name", "label", "field_type", "lookup", "required", "actions")
-        default_columns = fields
+        model = Execution
+        fields = ("pk", "id", "workflow", "status", "user", "start_time", "actions")
 
 
+class AutomationProviderTable(BaseTable):
+    """Table for AutomationProvider list view."""
+    pk = tables.CheckBoxColumn()
+    name = tables.Column(linkify=True)
+    enabled = tables.BooleanColumn()
+    actions = ButtonsColumn(AutomationProvider)
+
+    class Meta(BaseTable.Meta):
+        model = AutomationProvider
+        fields = ("pk", "name", "description", "enabled", "actions")
+
+
+class AutomationProviderConfigTable(BaseTable):
+    """Table for AutomationProviderConfig list view."""
+    pk = tables.CheckBoxColumn()
+    name = tables.Column(linkify=True)
+    provider = tables.Column(linkify=True)
+    enabled = tables.BooleanColumn()
+    actions = ButtonsColumn(AutomationProviderConfig)
+
+    class Meta(BaseTable.Meta):
+        model = AutomationProviderConfig
+        fields = ("pk", "name", "provider", "enabled", "description", "actions")
+
+
+class FolderTable(BaseTable):
+    """Table for Folder list view."""
+    pk = tables.CheckBoxColumn()
+    name = tables.Column(linkify=True)
+    parent = tables.Column(linkify=True)
+    actions = ButtonsColumn(Folder)
+
+    class Meta(BaseTable.Meta):
+        model = Folder
+        fields = ("pk", "name", "slug", "parent", "description", "actions")

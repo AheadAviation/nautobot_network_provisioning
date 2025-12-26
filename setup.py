@@ -1,6 +1,7 @@
-"""Setup script for nautobot-network-provisioning."""
-from setuptools import setup
+from setuptools import setup, find_packages
 
-# This file exists for editable installs and backward compatibility.
-# All configuration is in pyproject.toml
-setup()
+setup(
+    name="nautobot-network-provisioning",
+    packages=find_packages(),
+)
+

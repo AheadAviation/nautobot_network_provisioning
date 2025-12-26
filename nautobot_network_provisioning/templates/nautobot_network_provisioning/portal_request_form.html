@@ -4,6 +4,12 @@
 <div class="container-fluid">
   <div class="row mb-3">
     <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_network_provisioning:portal' %}">Portal</a></li>
+          <li class="breadcrumb-item active">{{ request_form.name }}</li>
+        </ol>
+      </nav>
       <h1>{{ request_form.name }}</h1>
       <p class="text-muted">{{ request_form.description }}</p>
     </div>
@@ -11,18 +17,18 @@
 
   <div class="row">
     <div class="col-lg-8">
-      <div class="card">
-        <div class="card-body">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
           <form method="post">
             {% csrf_token %}
             {% for spec in form.render_specs %}
               <div
-                class="form-group mb-3"
+                class="form-group mb-4"
                 data-nnp-field="{{ spec.field_name }}"
                 {% if spec.depends_on %}data-nnp-depends-on="{{ spec.depends_on }}"{% endif %}
                 {% if spec.show_condition %}data-nnp-show-condition="{{ spec.show_condition|escape }}"{% endif %}
               >
-                <label for="{{ spec.bound_field.id_for_label }}" class="form-label">
+                <label for="{{ spec.bound_field.id_for_label }}" class="form-label fw-bold">
                   {{ spec.label }}
                   {% if spec.required %}<span class="text-danger">*</span>{% endif %}
                 </label>
@@ -33,8 +39,25 @@
                 {% endif %}
               </div>
             {% endfor %}
-            <button type="submit" class="btn btn-primary">Submit</button>
-            <a href="{% url 'plugins:nautobot_network_provisioning:portal' %}" class="btn btn-outline-secondary">Back</a>
+            
+            <div class="form-group mb-4 bg-light p-3 rounded">
+               <label class="form-label fw-bold">Execution Options</label>
+               <div class="form-check">
+                  {{ form.__dry_run }}
+                  <label class="form-check-label" for="{{ form.__dry_run.id_for_label }}">
+                    {{ form.__dry_run.label }}
+                  </label>
+               </div>
+               <div class="form-text">{{ form.__dry_run.help_text }}</div>
+            </div>
+
+            <hr>
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'plugins:nautobot_network_provisioning:portal' %}" class="btn btn-outline-secondary">Cancel</a>
+              <button type="submit" class="btn btn-success btn-lg">
+                <i class="mdi mdi-send"></i> Submit Request
+              </button>
+            </div>
           </form>
         </div>
       </div>
@@ -44,6 +67,7 @@
 
 <script>
   (function () {
+    // Client-side visibility logic for low-code forms
     function getInputValue(inputEl) {
       if (!inputEl) return null;
       const type = (inputEl.getAttribute("type") || "").toLowerCase();
@@ -60,21 +84,14 @@
       if (s === "false") return false;
       if (s === "null" || s === "none") return null;
       if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
-      // string literal: 'x' or "x"
       const m = s.match(/^['"](.+)['"]$/);
       if (m) return m[1];
       return s;
     }
 
-    // Supports a small subset of "Jinja2 expressions" for client-side visibility:
-    // - input.foo
-    // - input.foo == "bar"
-    // - input.foo != "bar"
     function evalShowCondition(expr, valuesByField) {
       const e = (expr || "").trim();
       if (!e) return true;
-
-      // input.foo == "bar"
       let m = e.match(/^input\.([A-Za-z0-9_]+)\s*(==|!=)\s*(.+)$/);
       if (m) {
         const field = m[1];
@@ -84,8 +101,6 @@
         if (op === "==") return String(lhs) === String(rhs);
         if (op === "!=") return String(lhs) !== String(rhs);
       }
-
-      // input.foo (truthy)
       m = e.match(/^input\.([A-Za-z0-9_]+)$/);
       if (m) {
         const field = m[1];
@@ -93,8 +108,6 @@
         if (Array.isArray(v)) return v.length > 0;
         return !!v;
       }
-
-      // Unknown expression: fail-open in the browser (server still enforces).
       return true;
     }
 
@@ -111,7 +124,6 @@
         const name = w.getAttribute("data-nnp-field");
         const dependsOn = w.getAttribute("data-nnp-depends-on");
         const showCondition = w.getAttribute("data-nnp-show-condition");
-
         let visible = true;
         if (showCondition) {
           visible = evalShowCondition(showCondition, valuesByField);
@@ -119,9 +131,7 @@
           const depVal = valuesByField[dependsOn];
           visible = Array.isArray(depVal) ? depVal.length > 0 : !!depVal;
         }
-
         w.style.display = visible ? "" : "none";
-        // Disable hidden inputs so browsers don't submit stale values.
         const input = w.querySelector(`[name="${name}"]`);
         if (input) input.disabled = !visible;
       });
@@ -129,12 +139,11 @@
 
     document.addEventListener("DOMContentLoaded", function () {
       document.addEventListener("change", function (e) {
-        if (e && e.target && e.target.name) refreshVisibility();
+        if (e && e.target && (e.target.name || e.target.id)) refreshVisibility();
       });
       refreshVisibility();
     });
   })();
 </script>
 {% endblock %}
-
 

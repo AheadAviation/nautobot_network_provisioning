@@ -1,12 +1,4 @@
-"""Jobs module for Network Provisioning (Automation) app.
+# from .demo_provisioning_data import LoadProvisioningDemoData  # TODO: Implement this job
+from .task_library_sync import SyncTaskLibrary
 
-Phase 2 will introduce a Job to execute queued `Execution` records asynchronously.
-"""
-
-from nautobot_network_provisioning.jobs.execution_processor import ExecutionProcessor
-from nautobot_network_provisioning.jobs.provisioning_demo_setup import DemoDataSetup
-from nautobot_network_provisioning.jobs.git_sync import ExportAutomationToGit, ImportAutomationFromGit
-
-jobs = [ExecutionProcessor, DemoDataSetup, ExportAutomationToGit, ImportAutomationFromGit]
-
-__all__ = ["ExecutionProcessor", "DemoDataSetup", "ExportAutomationToGit", "ImportAutomationFromGit", "jobs"]
+jobs = [SyncTaskLibrary]

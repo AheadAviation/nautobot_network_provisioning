@@ -1,311 +1,265 @@
-"""UI Views for the Network Provisioning (Automation) app."""
-
-from __future__ import annotations
-
-import json
-from django.views import View
 from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views import View
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.views.decorators.clickjacking import xframe_options_exempt
+import json
 from nautobot.apps.views import NautobotUIViewSet
-
-from nautobot_network_provisioning.api.serializers import (
-    ExecutionSerializer,
-    ProviderConfigSerializer,
-    ProviderSerializer,
-    RequestFormFieldSerializer,
-    RequestFormSerializer,
-    TaskDefinitionSerializer,
-    TaskImplementationSerializer,
-    WorkflowSerializer,
-    WorkflowStepSerializer,
-)
-from nautobot_network_provisioning.filters import (
-    ExecutionFilterSet,
-    ProviderConfigFilterSet,
-    ProviderFilterSet,
-    RequestFormFieldFilterSet,
-    RequestFormFilterSet,
-    TaskDefinitionFilterSet,
-    TaskImplementationFilterSet,
-    WorkflowFilterSet,
-    WorkflowStepFilterSet,
-)
-from nautobot_network_provisioning.forms import (
-    ExecutionBulkEditForm,
-    ExecutionFilterForm,
-    ProviderBulkEditForm,
-    ProviderConfigBulkEditForm,
-    ProviderConfigFilterForm,
-    ProviderConfigForm,
-    ProviderFilterForm,
-    ProviderForm,
-    RequestFormBulkEditForm,
-    RequestFormFieldBulkEditForm,
-    RequestFormFieldFilterForm,
-    RequestFormFieldForm,
-    RequestFormFilterForm,
-    RequestFormForm,
-    TaskDefinitionBulkEditForm,
-    TaskDefinitionFilterForm,
-    TaskDefinitionForm,
-    TaskImplementationBulkEditForm,
-    TaskImplementationFilterForm,
-    TaskImplementationForm,
-    WorkflowBulkEditForm,
-    WorkflowFilterForm,
-    WorkflowForm,
-    WorkflowStepBulkEditForm,
-    WorkflowStepFilterForm,
-    WorkflowStepForm,
-)
-from nautobot_network_provisioning.models import (
-    Execution,
-    Provider,
-    ProviderConfig,
-    RequestForm,
-    RequestFormField,
-    TaskDefinition,
-    TaskImplementation,
-    Workflow,
-    WorkflowStep,
-)
-from nautobot_network_provisioning.tables import (
-    ExecutionTable,
-    ProviderConfigTable,
-    ProviderTable,
-    RequestFormFieldTable,
-    RequestFormTable,
-    TaskDefinitionTable,
-    TaskImplementationTable,
-    WorkflowStepTable,
-    WorkflowTable,
-)
+from . import models
+from . import tables
+from . import filters
 
 
-class TaskDefinitionUIViewSet(NautobotUIViewSet):
-    queryset = TaskDefinition.objects.all()
-    table_class = TaskDefinitionTable
-    form_class = TaskDefinitionForm
-    filterset_class = TaskDefinitionFilterSet
-    filterset_form_class = TaskDefinitionFilterForm
-    bulk_update_form_class = TaskDefinitionBulkEditForm
-    serializer_class = TaskDefinitionSerializer
-    lookup_field = "pk"
+@method_decorator(login_required, name='dispatch')
+class StudioShellView(View):
+    """
+    StudioShell v4.0 - Multi-Modal IDE Entry Point
+    
+    This is the root view that loads the StudioShell architecture with Activity Bar
+    and mode switching. Individual modes are loaded via client-side routing.
+    """
+    template_name = "nautobot_network_provisioning/studio_shell.html"
+    
+    def get(self, request, mode='library', item_type=None, pk=None):
+        """
+        mode: 'library', 'code', 'flow', 'ui'
+        item_type: 'task', 'workflow', 'form' (for deep linking)
+        pk: UUID of item to load
+        """
+        # Prepare data for all modes
+        context = {
+            "mode": mode,
+            "item_type": item_type,
+            "item_id": str(pk) if pk else None,
+        }
+        
+        # Load specific item data if provided
+        if pk and item_type == 'task':
+            task_intent = get_object_or_404(models.TaskIntent, pk=pk)
+            from .api.serializers import TaskIntentSerializer
+            from rest_framework.renderers import JSONRenderer
+            serializer = TaskIntentSerializer(task_intent, context={"request": request})
+            context["task_json"] = JSONRenderer().render(serializer.data).decode("utf-8")
+            context["object"] = task_intent
+        elif pk and item_type == 'workflow':
+            workflow = get_object_or_404(models.Workflow, pk=pk)
+            context["workflow_json"] = json.dumps({
+                "id": str(workflow.pk),
+                "name": workflow.name,
+                "slug": workflow.slug,
+                "graph_definition": workflow.graph_definition or {},
+            }, default=str)
+            context["object"] = workflow
+        elif pk and item_type == 'form':
+            request_form = get_object_or_404(models.RequestForm, pk=pk)
+            context["form_json"] = json.dumps({
+                "id": str(request_form.pk),
+                "name": request_form.name,
+                "slug": request_form.slug,
+            }, default=str)
+            context["object"] = request_form
+        else:
+            context["task_json"] = "{}"
+            context["workflow_json"] = "{}"
+            context["form_json"] = "{}"
+            context["object"] = None
+        
+        return render(request, self.template_name, context)
 
 
-class TaskImplementationUIViewSet(NautobotUIViewSet):
-    queryset = TaskImplementation.objects.select_related("task", "manufacturer", "platform", "provider_config")
-    table_class = TaskImplementationTable
-    form_class = TaskImplementationForm
-    filterset_class = TaskImplementationFilterSet
-    filterset_form_class = TaskImplementationFilterForm
-    bulk_update_form_class = TaskImplementationBulkEditForm
-    serializer_class = TaskImplementationSerializer
-    lookup_field = "pk"
+# UI ViewSets for NautobotUIViewSetRouter
+# These provide standard CRUD operations for the web UI
 
-    def get_extra_context(self, request, instance):
-        context = super().get_extra_context(request, instance)
-        if self.action in ["retrieve", "edit"] and instance:
-            context["object"] = instance
-        return context
+class TaskIntentUIViewSet(NautobotUIViewSet):
+    queryset = models.TaskIntent.objects.all()
+    filterset_class = filters.TaskIntentFilterSet
+    form_class = None  # Using custom Studio interface, not standard forms
+    table_class = tables.TaskIntentTable
 
-    def dispatch(self, request, *args, **kwargs):
-        """Redirect to IDE for template-based implementations on edit/retrieve if desired."""
-        if kwargs.get("pk") and request.method == "GET" and ("edit" in request.path or request.GET.get("edit")):
-            try:
-                instance = self.queryset.filter(pk=kwargs.get("pk")).first()
-                if instance and instance.implementation_type in ["jinja2_config", "jinja2_payload", "graphql_query"]:
-                    return redirect(reverse("plugins:nautobot_network_provisioning:template_ide", kwargs={"pk": instance.pk}))
-            except Exception:
-                pass
-        return super().dispatch(request, *args, **kwargs)
+
+class TaskStrategyUIViewSet(NautobotUIViewSet):
+    """UI ViewSet for TaskStrategy (platform-specific implementations)."""
+    queryset = models.TaskStrategy.objects.all()
+    filterset_class = filters.TaskStrategyFilterSet
+    form_class = None  # Using custom Studio interface, not standard forms
+    table_class = tables.TaskStrategyTable
 
 
 class WorkflowUIViewSet(NautobotUIViewSet):
-    queryset = Workflow.objects.all()
-    table_class = WorkflowTable
-    form_class = WorkflowForm
-    filterset_class = WorkflowFilterSet
-    filterset_form_class = WorkflowFilterForm
-    bulk_update_form_class = WorkflowBulkEditForm
-    serializer_class = WorkflowSerializer
-    lookup_field = "pk"
-
-    def get_extra_context(self, request, instance):
-        context = super().get_extra_context(request, instance)
-        if self.action == "retrieve" and instance:
-            context["steps"] = instance.steps.all().order_by("order")
-        return context
-
-
-class WorkflowStepUIViewSet(NautobotUIViewSet):
-    queryset = WorkflowStep.objects.select_related("workflow", "task")
-    table_class = WorkflowStepTable
-    form_class = WorkflowStepForm
-    filterset_class = WorkflowStepFilterSet
-    filterset_form_class = WorkflowStepFilterForm
-    bulk_update_form_class = WorkflowStepBulkEditForm
-    serializer_class = WorkflowStepSerializer
-    lookup_field = "pk"
-
-
-class ExecutionUIViewSet(NautobotUIViewSet):
-    queryset = Execution.objects.select_related("workflow", "requested_by", "approved_by").prefetch_related("target_devices")
-    table_class = ExecutionTable
-    filterset_class = ExecutionFilterSet
-    filterset_form_class = ExecutionFilterForm
-    bulk_update_form_class = ExecutionBulkEditForm
-    serializer_class = ExecutionSerializer
-    lookup_field = "pk"
-    action_buttons = ("export",)
-
-    def get_extra_context(self, request, instance):
-        context = super().get_extra_context(request, instance)
-        if self.action == "retrieve" and instance:
-            context["steps"] = instance.steps.all().order_by("order")
-        return context
-
-
-class ProviderUIViewSet(NautobotUIViewSet):
-    queryset = Provider.objects.all()
-    table_class = ProviderTable
-    form_class = ProviderForm
-    filterset_class = ProviderFilterSet
-    filterset_form_class = ProviderFilterForm
-    bulk_update_form_class = ProviderBulkEditForm
-    serializer_class = ProviderSerializer
-    lookup_field = "pk"
-
-
-class ProviderConfigUIViewSet(NautobotUIViewSet):
-    queryset = ProviderConfig.objects.select_related("provider", "secrets_group").prefetch_related(
-        "scope_locations", "scope_tenants", "scope_tags"
-    )
-    table_class = ProviderConfigTable
-    form_class = ProviderConfigForm
-    filterset_class = ProviderConfigFilterSet
-    filterset_form_class = ProviderConfigFilterForm
-    bulk_update_form_class = ProviderConfigBulkEditForm
-    serializer_class = ProviderConfigSerializer
-    lookup_field = "pk"
+    queryset = models.Workflow.objects.all()
+    filterset_class = filters.WorkflowFilterSet
+    form_class = None  # Using custom Studio interface, not standard forms
+    table_class = tables.WorkflowTable
 
 
 class RequestFormUIViewSet(NautobotUIViewSet):
-    queryset = RequestForm.objects.select_related("workflow")
-    table_class = RequestFormTable
-    form_class = RequestFormForm
-    filterset_class = RequestFormFilterSet
-    filterset_form_class = RequestFormFilterForm
-    bulk_update_form_class = RequestFormBulkEditForm
-    serializer_class = RequestFormSerializer
-    lookup_field = "pk"
-
-    def get_extra_context(self, request, instance):
-        context = super().get_extra_context(request, instance)
-        if self.action == "retrieve" and instance:
-            context["fields"] = instance.fields.all().order_by("order")
-        return context
+    queryset = models.RequestForm.objects.all()
+    filterset_class = filters.RequestFormFilterSet
+    form_class = None  # Using custom Studio interface, not standard forms
+    table_class = tables.RequestFormTable
 
 
-class RequestFormFieldUIViewSet(NautobotUIViewSet):
-    queryset = RequestFormField.objects.select_related("form", "object_type", "depends_on")
-    table_class = RequestFormFieldTable
-    form_class = RequestFormFieldForm
-    filterset_class = RequestFormFieldFilterSet
-    filterset_form_class = RequestFormFieldFilterForm
-    bulk_update_form_class = RequestFormFieldBulkEditForm
-    serializer_class = RequestFormFieldSerializer
-    lookup_field = "pk"
+class ExecutionUIViewSet(NautobotUIViewSet):
+    queryset = models.Execution.objects.all()
+    filterset_class = filters.ExecutionFilterSet
+    form_class = None  # Read-only viewset for execution history
+    table_class = tables.ExecutionTable
 
 
-class TemplateIDEView(LoginRequiredMixin, View):
+class AutomationProviderUIViewSet(NautobotUIViewSet):
+    queryset = models.AutomationProvider.objects.all()
+    filterset_class = filters.AutomationProviderFilterSet
+    form_class = None
+    table_class = tables.AutomationProviderTable
+
+
+class AutomationProviderConfigUIViewSet(NautobotUIViewSet):
+    queryset = models.AutomationProviderConfig.objects.all()
+    filterset_class = filters.AutomationProviderConfigFilterSet
+    form_class = None
+    table_class = tables.AutomationProviderConfigTable
+
+
+# Placeholder views for Studio interfaces (to be implemented)
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(xframe_options_exempt, name='dispatch')
+class WorkflowDesignerView(View):
     """
-    GraphiQL-style IDE for developing and testing Jinja2 templates.
+    Workflow Orchestrator - React Flow Canvas
+    
+    Note: @xframe_options_exempt allows this view to be embedded in iframes
+    within the StudioShell interface.
     """
-    template_name = "nautobot_network_provisioning/template_ide.html"
-
+    template_name = "nautobot_network_provisioning/workflow_orchestrator.html"
+    
+    def dispatch(self, request, *args, **kwargs):
+        """Override dispatch to ensure X-Frame-Options is not set"""
+        response = super().dispatch(request, *args, **kwargs)
+        if 'X-Frame-Options' in response:
+            del response['X-Frame-Options']
+        return response
+    
     def get(self, request, pk=None):
-        """Render the IDE, optionally pre-loading a TaskImplementation."""
-        context = {
-            "template_content": "",
-            "variables_json": json.dumps({"device": {"name": "example-device"}, "inputs": {}}, indent=2),
-            "implementation": None,
-        }
-
         if pk:
-            implementation = get_object_or_404(TaskImplementation, pk=pk)
-            context["implementation"] = implementation
-            context["template_content"] = implementation.template_content
-            
-            # Try to build a sample variables JSON from the task's input schema
-            if implementation.task and implementation.task.input_schema:
-                sample_inputs = {}
-                properties = implementation.task.input_schema.get("properties", {})
-                for key, prop in properties.items():
-                    prop_type = prop.get("type")
-                    if prop_type == "integer":
-                        sample_inputs[key] = 1
-                    elif prop_type == "boolean":
-                        sample_inputs[key] = True
-                    elif prop_type == "object":
-                        sample_inputs[key] = {}
-                    elif prop_type == "array":
-                        sample_inputs[key] = []
-                    else:
-                        sample_inputs[key] = "sample_value"
-                
-                context["variables_json"] = json.dumps({
-                    "device": {
-                        "name": "demo-switch-01",
-                        "platform": str(implementation.platform) if implementation.platform else "ios",
-                    },
-                    "intended": {
-                        "inputs": sample_inputs
-                    }
-                }, indent=2)
+            workflow = get_object_or_404(models.Workflow, pk=pk)
+        else:
+            workflow = None
+        
+        # Prepare workflow data for JS
+        workflow_json = "{}"
+        if workflow:
+            workflow_json = json.dumps({
+                "id": str(workflow.pk),
+                "name": workflow.name,
+                "slug": workflow.slug,
+                "graph_definition": workflow.graph_definition or {},
+            }, default=str)
 
-        return render(request, self.template_name, context)
-
-
-class AutomationHomeView(LoginRequiredMixin, View):
-    """
-    Overview dashboard for the Automation App.
-    """
-    template_name = "nautobot_network_provisioning/home.html"
-
-    def get(self, request):
         context = {
-            "task_count": TaskDefinition.objects.count(),
-            "tasks": TaskDefinition.objects.all().order_by("category", "name"),
-            "workflow_count": Workflow.objects.count(),
-            "execution_count": Execution.objects.count(),
-            "recent_executions": Execution.objects.order_by("-created")[:5],
-            "active_workflows": Workflow.objects.filter(enabled=True)[:5],
-            "published_forms": RequestForm.objects.filter(published=True).count(),
+            "object": workflow,
+            "workflow_json": workflow_json,
         }
         return render(request, self.template_name, context)
 
 
-class RequestFormBuilderView(LoginRequiredMixin, View):
-    """
-    Experimental Form Builder view.
-    """
-    template_name = "nautobot_network_provisioning/requestform_builder.html"
-
-    def get(self, request, pk):
-        rf = get_object_or_404(RequestForm, pk=pk)
-        fields = rf.fields.all().order_by("order")
-        return render(request, self.template_name, {"object": rf, "fields": fields})
+class ExecutionRunView(View):
+    """Execution Trigger View - placeholder"""
+    
+    def post(self, request, pk):
+        execution = get_object_or_404(models.Execution, pk=pk)
+        # TODO: Implement execution trigger logic
+        return redirect("plugins:nautobot_network_provisioning:execution_detail", pk=pk)
 
 
-class WorkflowDesignerView(LoginRequiredMixin, View):
+@method_decorator(login_required, name='dispatch')
+@method_decorator(xframe_options_exempt, name='dispatch')
+class TaskStudioV2View(View):
     """
-    Experimental Workflow Designer view.
+    Task Studio v2.0 - Low-Code First Architecture
+    
+    Three-zone layout:
+    - Zone A (Left): Input variable builder
+    - Zone B (Center): Strategy editor with multi-method support
+    - Zone C (Right): Live preview with device context
+    
+    Features:
+    - Low-code input builder with smart types
+    - Multi-method strategies (CLI, REST API, NETCONF, etc.)
+    - YAML export for Git storage
+    - Real-time template preview
+    
+    Note: @xframe_options_exempt allows this view to be embedded in iframes
+    within the StudioShell interface.
     """
-    template_name = "nautobot_network_provisioning/workflow_designer.html"
+    template_name = "nautobot_network_provisioning/task_studio_v2.html"
+    
+    def dispatch(self, request, *args, **kwargs):
+        """Override dispatch to ensure X-Frame-Options is not set"""
+        response = super().dispatch(request, *args, **kwargs)
+        if 'X-Frame-Options' in response:
+            del response['X-Frame-Options']
+        return response
+    
+    def get(self, request, pk=None):
+        if pk:
+            task_intent = get_object_or_404(models.TaskIntent, pk=pk)
+        else:
+            task_intent = None
+        
+        # Prepare task data for JS
+        task_json = "{}"
+        if task_intent:
+            from .api.serializers import TaskIntentSerializer
+            from rest_framework.renderers import JSONRenderer
+            serializer = TaskIntentSerializer(task_intent, context={"request": request})
+            task_json = JSONRenderer().render(serializer.data).decode("utf-8")
 
-    def get(self, request, pk):
-        workflow = get_object_or_404(Workflow, pk=pk)
-        steps = workflow.steps.all().order_by("order")
-        return render(request, self.template_name, {"object": workflow, "steps": steps})
+        context = {
+            "object": task_intent,
+            "task_json": task_json,
+        }
+        return render(request, self.template_name, context)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(xframe_options_exempt, name='dispatch')
+class FormDesignerView(View):
+    """
+    Form Designer - Drag-and-drop builder for request forms
+    
+    Note: @xframe_options_exempt allows this view to be embedded in iframes
+    within the StudioShell interface.
+    """
+    template_name = "nautobot_network_provisioning/form_designer.html"
+    
+    def dispatch(self, request, *args, **kwargs):
+        """Override dispatch to ensure X-Frame-Options is not set"""
+        response = super().dispatch(request, *args, **kwargs)
+        if 'X-Frame-Options' in response:
+            del response['X-Frame-Options']
+        return response
+    
+    def get(self, request, pk=None):
+        if pk:
+            request_form = get_object_or_404(models.RequestForm, pk=pk)
+        else:
+            request_form = None
+        
+        # Prepare form data for JS
+        form_json = "{}"
+        if request_form:
+            form_json = json.dumps({
+                "id": str(request_form.pk),
+                "name": request_form.name,
+                "slug": request_form.slug,
+                "workflow_id": str(request_form.workflow_id) if request_form.workflow_id else None,
+                "field_definition": request_form.field_definition or {},
+            }, default=str)
+
+        context = {
+            "object": request_form,
+            "form_json": form_json,
+        }
+        return render(request, self.template_name, context)

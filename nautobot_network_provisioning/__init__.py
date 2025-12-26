@@ -1,22 +1,12 @@
-"""
-Network Provisioning - provisioning platform for Nautobot (docs/design.md).
-
-This repository is a net-new implementation aligned to the design docs:
-- Task Catalog (TaskDefinition) + Task Implementations (TaskImplementation)
-- Workflows (Workflow + WorkflowStep)
-- Executions (Execution + ExecutionStep)
-- Providers (Provider + ProviderConfig)
-"""
+"""Nautobot App: nautobot_network_provisioning."""
 
 __version__ = "0.2.0"
 
-# NOTE: GitHub Actions (release/version checks) imports this package in a plain
-# Python environment that may not have Nautobot installed. Keep version importable
-# without requiring Nautobot at import-time.
 try:
-    from nautobot.apps import NautobotAppConfig  # type: ignore
-except ModuleNotFoundError:  # pragma: no cover
-    NautobotAppConfig = object  # type: ignore[misc,assignment]
+    from nautobot.apps import NautobotAppConfig
+except ImportError:
+    # Fallback for non-Nautobot environments (e.g., CI)
+    NautobotAppConfig = object
 
 
 class NetworkProvisioningConfig(NautobotAppConfig):
@@ -33,17 +23,32 @@ class NetworkProvisioningConfig(NautobotAppConfig):
     max_version = "2.99"
     required_settings = []
     default_settings = {
-        # Phase 2 will introduce async execution via Jobs/Celery.
         "enable_async_execution": False,
+        "demo_data": False,
+        "queue_processing_enabled": True,
+        "write_mem_enabled": True,
+        "mac_collection_enabled": True,
+        "history_retention_days": 30,
+        "proxy_worker_enabled": False,
+        "proxy_broker_url": "redis://localhost:6379/0",
+        "proxy_backend_url": "redis://localhost:6379/0",
+        "proxy_queue_name": "proxy_queue",
+        "proxy_task_timeout": 120,
     }
-    # This app does not override any core Nautobot views. Setting this explicitly avoids Nautobot attempting
-    # to import our `views.py` during startup for "override view" registration.
-    override_views = None
 
-    @property
-    def template_extensions(self):
-        from nautobot_network_provisioning.template_content import template_extensions
-        return template_extensions
+    def ready(self):
+        super().ready()
+        # Register template extensions (using function-level import to avoid circular dependencies)
+        try:
+            from .template_content import template_extensions
+            self.template_extensions = template_extensions
+        except ImportError as e:
+            # Log but don't fail during reload verification
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Could not import template_extensions during ready(): {e}")
+            self.template_extensions = []
 
 
 config = NetworkProvisioningConfig
+

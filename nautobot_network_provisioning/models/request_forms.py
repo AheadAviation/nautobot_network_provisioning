@@ -1,118 +1,117 @@
-"""Phase 3: Request Forms and Portal models."""
-
-from __future__ import annotations
-
 from django.db import models
-from nautobot.apps.models import PrimaryModel
+from django.contrib.contenttypes.models import ContentType
+from nautobot.core.models.generics import PrimaryModel
+from .workflows import Workflow
 
 
 class RequestForm(PrimaryModel):
-    """User-facing form that exposes a Workflow in the self-service Portal."""
+    """User-facing portal interface for triggering Workflows (The Front Door)."""
 
-    name = models.CharField(max_length=150, unique=True)
-    slug = models.SlugField(max_length=160, unique=True)
-    description = models.TextField(blank=True)
-    category = models.CharField(max_length=100, blank=True)
-    icon = models.CharField(max_length=100, blank=True, help_text="Optional icon name (UI hint).")
-
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
     workflow = models.ForeignKey(
-        to="nautobot_network_provisioning.Workflow",
+        to=Workflow,
         on_delete=models.PROTECT,
         related_name="request_forms",
     )
-
-    published = models.BooleanField(default=False)
+    description = models.CharField(max_length=200, blank=True)
+    folder = models.ForeignKey(
+        to='nautobot_network_provisioning.Folder',
+        on_delete=models.SET_NULL,
+        related_name='forms',
+        blank=True,
+        null=True,
+        help_text="Folder for organization in Catalog Explorer"
+    )
+    published = models.BooleanField(default=True)
+    
+    field_definition = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Mapping of form fields to Workflow/Intent variables."
+    )
 
     class Meta:
-        ordering = ["name"]
-        verbose_name = "Request Form"
-        verbose_name_plural = "Request Forms"
+        ordering = ("name",)
 
-    def __str__(self) -> str:  # pragma: no cover
+    def __str__(self):
         return self.name
 
 
-class RequestFormField(PrimaryModel):
-    """A single field in a RequestForm."""
+class RequestFormField(models.Model):
+    """
+    Specific field definition for a RequestForm. 
+    Note: In v2.0, this may be deprecated in favor of field_definition JSON, 
+    but kept for backwards compatibility or more granular control if needed.
+    """
 
-    class FieldTypeChoices(models.TextChoices):
-        OBJECT_SELECTOR = "object_selector", "Object Selector"
-        TEXT = "text", "Text"
-        NUMBER = "number", "Number"
-        CHOICE = "choice", "Choice"
-        MULTI_CHOICE = "multi_choice", "Multi Choice"
-        BOOLEAN = "boolean", "Boolean"
-
-    form = models.ForeignKey(to=RequestForm, on_delete=models.CASCADE, related_name="fields")
-    order = models.PositiveIntegerField(default=0, db_index=True)
-
-    field_name = models.CharField(
-        max_length=100,
-        help_text="Internal name; also used as the key in Execution.inputs by default.",
+    form = models.ForeignKey(
+        to=RequestForm,
+        on_delete=models.CASCADE,
+        related_name="fields",
     )
-    field_type = models.CharField(max_length=24, choices=FieldTypeChoices.choices)
-
-    label = models.CharField(max_length=150)
-    help_text = models.TextField(blank=True)
-    required = models.BooleanField(default=False)
-
-    default_value = models.JSONField(default=dict, blank=True)
-    validation_rules = models.JSONField(default=dict, blank=True)
-
-    choices = models.JSONField(default=list, blank=True, help_text="For choice/multi_choice fields.")
-
+    field_name = models.CharField(max_length=100)
+    label = models.CharField(max_length=100, blank=True)
+    field_type = models.CharField(
+        max_length=50,
+        choices=(
+            ("text", "Text"),
+            ("number", "Number"),
+            ("boolean", "Boolean"),
+            ("choice", "Choice"),
+            ("multi_choice", "Multi-Choice"),
+            ("object_selector", "Object Selector (Nautobot Model)"),
+        ),
+        default="text",
+    )
     object_type = models.ForeignKey(
-        to="contenttypes.ContentType",
-        on_delete=models.SET_NULL,
-        null=True,
+        to=ContentType,
+        on_delete=models.PROTECT,
         blank=True,
-        related_name="+",
-        help_text="For object selectors: the target object type (e.g., dcim.device).",
+        null=True,
+        help_text="Required for object_selector field type.",
     )
-    queryset_filter = models.JSONField(default=dict, blank=True, help_text="Optional queryset filter (JSON).")
-
-    # High-level lookup helpers for "Low Code" usage
-    class LookupTypeChoices(models.TextChoices):
-        MANUAL = "manual", "Manual JSON Filter"
-        LOCATION_BY_TYPE = "location_by_type", "Location by Type"
-        VLAN_BY_TAG = "vlan_by_tag", "VLAN by Tag"
-        DEVICE_BY_ROLE = "device_by_role", "Device by Role"
-        TASK_BY_CATEGORY = "task_by_category", "Task by Category"
-
-    lookup_type = models.CharField(
-        max_length=32,
-        choices=LookupTypeChoices.choices,
-        default=LookupTypeChoices.MANUAL,
-        help_text="Simplified lookup logic for this field."
+    choices = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="List of choices for choice/multi_choice types.",
     )
-    lookup_config = models.JSONField(default=dict, blank=True, help_text="Configuration for the simplified lookup.")
+    required = models.BooleanField(default=True)
+    default = models.CharField(max_length=200, blank=True)
+    help_text = models.CharField(max_length=200, blank=True)
+    order = models.PositiveSmallIntegerField(default=100)
 
+    # Advanced Logic
     depends_on = models.ForeignKey(
-        to="self",
+        "self",
         on_delete=models.SET_NULL,
-        null=True,
         blank=True,
+        null=True,
         related_name="dependents",
     )
-    show_condition = models.TextField(blank=True, help_text="Jinja2 expression for conditional visibility.")
-
-    # Optional: explicitly map to a key in workflow/execution inputs.
-    map_to = models.CharField(
+    show_condition = models.CharField(
         max_length=200,
         blank=True,
-        help_text="Optional dotted path to map into Execution.inputs (defaults to field_name).",
+        help_text="Jinja2 expression for conditional visibility (e.g. 'input.role == \"access\"').",
+    )
+    map_to = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Dotted path to map this input to in the execution context (e.g. 'vars.vlan_id').",
+    )
+    sot_loopback = models.BooleanField(
+        default=False,
+        help_text="If true, this field will update a Nautobot model attribute during execution.",
+    )
+    sot_path = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Dotted path to the model attribute (e.g. 'interface.description' or 'device.location').",
     )
 
     class Meta:
-        ordering = ["form__name", "order", "field_name"]
-        constraints = [
-            models.UniqueConstraint(fields=["form", "order"], name="uniq_requestformfield_form_order"),
-            models.UniqueConstraint(fields=["form", "field_name"], name="uniq_requestformfield_form_field_name"),
-        ]
-        verbose_name = "Request Form Field"
-        verbose_name_plural = "Request Form Fields"
+        ordering = ("form", "order", "field_name")
+        unique_together = (("form", "field_name"),)
 
-    def __str__(self) -> str:  # pragma: no cover
-        return f"{self.form.name}: {self.field_name}"
-
-
+    def __str__(self):
+        return f"{self.form.name} - {self.field_name}"

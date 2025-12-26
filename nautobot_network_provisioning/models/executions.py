@@ -1,104 +1,86 @@
-"""Execution/audit trail models for workflow runs."""
-
-from __future__ import annotations
-
-from django.conf import settings
 from django.db import models
-from nautobot.apps.models import PrimaryModel
+from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from nautobot.core.models.generics import PrimaryModel
+from nautobot.apps.models import StatusField
+from .workflows import Workflow
+from .request_forms import RequestForm
+from .tasks import TaskStrategy
+
+User = get_user_model()
 
 
 class Execution(PrimaryModel):
-    class StatusChoices(models.TextChoices):
-        PENDING = "pending", "Pending"
-        RUNNING = "running", "Running"
-        AWAITING_APPROVAL = "awaiting_approval", "Awaiting Approval"
-        SCHEDULED = "scheduled", "Scheduled"
-        COMPLETED = "completed", "Completed"
-        FAILED = "failed", "Failed"
-        CANCELLED = "cancelled", "Cancelled"
+    """The audit trail - record of a Workflow execution."""
 
-    workflow = models.ForeignKey(to="nautobot_network_provisioning.Workflow", on_delete=models.PROTECT, related_name="executions")
-
-    requested_by = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="automation_executions",
+    workflow = models.ForeignKey(
+        to=Workflow,
+        on_delete=models.PROTECT,
+        related_name="executions",
     )
-    approved_by = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL,
+    request_form = models.ForeignKey(
+        to=RequestForm,
         on_delete=models.SET_NULL,
-        null=True,
+        related_name="executions",
         blank=True,
-        related_name="automation_executions_approved",
+        null=True,
     )
+    user = models.ForeignKey(
+        to=User,
+        on_delete=models.PROTECT,
+        related_name="executions",
+    )
+    # Generic foreign key to the target object (Device, Interface, etc.)
+    object_type = models.ForeignKey(
+        to=ContentType,
+        on_delete=models.CASCADE,
+        related_name="+",
+        blank=True,
+        null=True,
+    )
+    object_id = models.UUIDField(blank=True, null=True)
+    target_object = GenericForeignKey("object_type", "object_id")
 
-    status = models.CharField(max_length=32, choices=StatusChoices.choices, default=StatusChoices.PENDING, db_index=True)
-
-    inputs = models.JSONField(default=dict, blank=True)
-    context = models.JSONField(default=dict, blank=True)
-
-    scheduled_for = models.DateTimeField(null=True, blank=True)
-    started_at = models.DateTimeField(null=True, blank=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-
-    target_devices = models.ManyToManyField(to="dcim.Device", blank=True, related_name="automation_executions")
+    # Using Nautobot's StatusField for state management
+    status = StatusField(related_name="executions")
+    input_data = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="The inputs provided at the time of execution.",
+    )
+    start_time = models.DateTimeField(auto_now_add=True)
+    end_time = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        ordering = ["-created"]
-        verbose_name = "Execution"
-        verbose_name_plural = "Executions"
+        ordering = ("-start_time",)
 
-    def __str__(self) -> str:  # pragma: no cover
-        return f"{self.workflow.name} ({self.status})"
+    def __str__(self):
+        return f"Execution {self.pk} - {self.workflow} ({self.status})"
 
 
-class ExecutionStep(PrimaryModel):
-    class StatusChoices(models.TextChoices):
-        PENDING = "pending", "Pending"
-        RUNNING = "running", "Running"
-        COMPLETED = "completed", "Completed"
-        FAILED = "failed", "Failed"
-        SKIPPED = "skipped", "Skipped"
+class ExecutionStep(models.Model):
+    """A record of a specific TaskStrategy execution within an Execution."""
 
-    execution = models.ForeignKey(to=Execution, on_delete=models.CASCADE, related_name="steps")
-    workflow_step = models.ForeignKey(
-        to="nautobot_network_provisioning.WorkflowStep",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+    execution = models.ForeignKey(
+        to=Execution,
+        on_delete=models.CASCADE,
+        related_name="steps",
+    )
+    task_strategy = models.ForeignKey(
+        to=TaskStrategy,
+        on_delete=models.PROTECT,
         related_name="execution_steps",
     )
-    order = models.PositiveIntegerField(default=0, db_index=True)
-
-    status = models.CharField(max_length=24, choices=StatusChoices.choices, default=StatusChoices.PENDING, db_index=True)
-    started_at = models.DateTimeField(null=True, blank=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-
-    task_implementation = models.ForeignKey(
-        to="nautobot_network_provisioning.TaskImplementation",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="execution_steps",
-    )
-
-    rendered_content = models.TextField(blank=True)
-    inputs = models.JSONField(default=dict, blank=True)
-    outputs = models.JSONField(default=dict, blank=True)
-    logs = models.TextField(blank=True)
+    status = StatusField(related_name="execution_steps")
+    rendered_content = models.TextField(blank=True, help_text="The rendered config or payload.")
+    output = models.TextField(blank=True, help_text="Actual output from the device/provider.")
     error_message = models.TextField(blank=True)
+    start_time = models.DateTimeField(auto_now_add=True)
+    end_time = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        ordering = ["execution__created", "order"]
-        constraints = [
-            models.UniqueConstraint(fields=["execution", "order"], name="uniq_executionstep_execution_order"),
-        ]
-        verbose_name = "Execution Step"
-        verbose_name_plural = "Execution Steps"
+        ordering = ("execution", "start_time")
 
-    def __str__(self) -> str:  # pragma: no cover
-        return f"{self.execution_id}: {self.order}"
-
-
+    def __str__(self):
+        return f"{self.execution} - {self.task_strategy} ({self.status})"

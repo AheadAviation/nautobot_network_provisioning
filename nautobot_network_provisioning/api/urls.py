@@ -1,41 +1,49 @@
-"""API URL routes for the Network Provisioning (Automation) app."""
+﻿"""
+API URL Configuration v2.0
 
+Includes TaskStrategy endpoints and enhanced utility endpoints.
+"""
 from django.urls import path
 from nautobot.apps.api import OrderedDefaultRouter
-
-from nautobot_network_provisioning.api.views import (
-    ExecutionStepViewSet,
-    ExecutionViewSet,
-    ProviderConfigViewSet,
-    ProviderViewSet,
-    RequestFormFieldViewSet,
-    RequestFormViewSet,
-    TaskDefinitionViewSet,
-    TaskImplementationViewSet,
-    WorkflowStepViewSet,
-    WorkflowViewSet,
-    device_context,
-    template_preview,
-)
+from . import views
 
 router = OrderedDefaultRouter()
 
-router.register("tasks", TaskDefinitionViewSet)
-router.register("task-implementations", TaskImplementationViewSet)
-router.register("workflows", WorkflowViewSet)
-router.register("workflow-steps", WorkflowStepViewSet)
-router.register("executions", ExecutionViewSet)
-router.register("execution-steps", ExecutionStepViewSet)
-router.register("providers", ProviderViewSet)
-router.register("provider-configs", ProviderConfigViewSet)
-router.register("request-forms", RequestFormViewSet)
-router.register("request-form-fields", RequestFormFieldViewSet)
+# ═══════════════════════════════════════════════════════════════════════════
+# MODEL VIEWSETS
+# ═══════════════════════════════════════════════════════════════════════════
+router.register("task-intents", views.TaskIntentViewSet)
+router.register("task-strategies", views.TaskStrategyViewSet)
+router.register("workflows", views.WorkflowViewSet)
+router.register("folders", views.FolderViewSet)
+router.register("request-forms", views.RequestFormViewSet)
+router.register("executions", views.ExecutionViewSet)
 
+# ═══════════════════════════════════════════════════════════════════════════
+# UTILITY ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════
 urlpatterns = [
-    path("template-preview/", template_preview, name="template-preview"),
-    path("device-context/<uuid:pk>/", device_context, name="device-context"),
+    # Template validation and preview
+    path("validate-task/", views.validate_task, name="validate_task"),
+    path("template-preview/", views.template_preview, name="template_preview"),
+    path("render-preview/", views.render_preview, name="render_preview"),
+    path("preview/", views.render_preview, name="preview"),  # Alias for frontend compatibility
+    path("smart-preview/", views.smart_preview_view, name="smart_preview"),  # NEW: Auto-select strategy based on device
+    
+    # Context and variable resolution
+    path("resolve-device-context/", views.resolve_device_context_view, name="resolve_device_context"),
+    path("resolve-variables/", views.resolve_variables_view, name="resolve_variables"),
+    
+    # Model and metadata
+    path("model-metadata/", views.model_metadata, name="model_metadata"),
+    path("input-types/", views.input_types_view, name="input_types"),  # NEW: For low-code input builder
+    
+    # Search and lookup
+    path("device-search/", views.device_search_view, name="device_search"),
+    path("platforms/", views.platform_list_view, name="platform_list"),
+    
+    # GraphQL proxy
+    path("graphql-proxy/", views.graphql_proxy_view, name="graphql_proxy"),
 ]
 
 urlpatterns += router.urls
-
-

@@ -1,58 +1,114 @@
 from nautobot.apps.ui import TemplateExtension
-from django.urls import reverse
-from nautobot_network_provisioning.models import TaskImplementation, TaskDefinition, Workflow, RequestForm
 
-class TaskImplementationIDEButton(TemplateExtension):
-    model = "nautobot_network_provisioning.taskimplementation"
+class DeviceIntentButtons(TemplateExtension):
+    """
+    Injects 'Run Task' and 'Intent Status' buttons into the Device detail view.
+    """
+    model = "dcim.device"
 
-    def detail_buttons(self):
+    def buttons(self):
+        from .models import RequestForm, Execution
+        # We can dynamically determine which tasks are available for this device
+        device = self.context["object"]
+        from .models import RequestForm, RequestFormField
+        from django.contrib.contenttypes.models import ContentType
+        
+        device_ct = ContentType.objects.get_for_model(device)
+        
+        # Find request forms that have an object selector for Device
+        applicable_forms = RequestForm.objects.filter(
+            published=True,
+            fields__field_type="object_selector",
+            fields__object_type=device_ct
+        ).distinct()
+
+        applicable_forms_data = []
+        for rf in applicable_forms:
+            field = rf.fields.filter(field_type="object_selector", object_type=device_ct).first()
+            applicable_forms_data.append({
+                "form": rf,
+                "field_name": field.field_name if field else None
+            })
+        
+        return self.render("nautobot_network_provisioning/inc/device_buttons.html", {
+            "device": device,
+            "applicable_forms": applicable_forms_data,
+        })
+
+    def right_page(self):
+        from .models import Execution
+        # Injects the 'Intent Status' panel or 'Flight Recorder' history
+        device = self.context["object"]
+        from django.contrib.contenttypes.models import ContentType
+        ct = ContentType.objects.get_for_model(device)
+        recent_executions = Execution.objects.filter(
+            object_type=ct,
+            object_id=device.pk
+        ).order_by("-start_time")[:5]
+        
+        return self.render("nautobot_network_provisioning/inc/device_intent_panel.html", {
+            "device": device,
+            "recent_executions": recent_executions,
+        })
+
+    def detail_tabs(self):
+        device = self.context["object"]
+        from django.urls import reverse
         return [
             {
-                "link": reverse("plugins:nautobot_network_provisioning:template_ide", kwargs={"pk": self.context["object"].pk}),
-                "title": "Open in IDE",
-                "icon_class": "mdi mdi-code-braces",
-                "button_class": "btn btn-info",
-            }
+                "title": "Troubleshooting",
+                "url": reverse("plugins:nautobot_network_provisioning:troubleshooting", kwargs={
+                    "model_label": "dcim.device",
+                    "pk": device.pk
+                }),
+            },
         ]
 
-class TaskDefinitionImplementations(TemplateExtension):
-    model = "nautobot_network_provisioning.taskdefinition"
+class InterfaceIntentButtons(TemplateExtension):
+    """
+    Injects 'Change Port' actions into the Interface detail view.
+    """
+    model = "dcim.interface"
 
-    def right_column(self):
-        # Show list of implementations for this task
-        return self.render("nautobot_network_provisioning/inc/task_implementations_table.html")
+    def buttons(self):
+        interface = self.context["object"]
+        from .models import RequestForm, RequestFormField
+        from django.contrib.contenttypes.models import ContentType
+        
+        interface_ct = ContentType.objects.get_for_model(interface)
+        
+        # Find request forms that have an object selector for Interface
+        applicable_forms = RequestForm.objects.filter(
+            published=True,
+            fields__field_type="object_selector",
+            fields__object_type=interface_ct
+        ).distinct()
 
-    def left_column(self):
-        # Show workflow steps using this task
-        return self.render("nautobot_network_provisioning/inc/task_usage_table.html")
+        applicable_forms_data = []
+        for rf in applicable_forms:
+            field = rf.fields.filter(field_type="object_selector", object_type=interface_ct).first()
+            applicable_forms_data.append({
+                "form": rf,
+                "field_name": field.field_name if field else None
+            })
+        
+        return self.render("nautobot_network_provisioning/inc/interface_buttons.html", {
+            "interface": interface,
+            "applicable_forms": applicable_forms_data,
+        })
 
-class WorkflowSteps(TemplateExtension):
-    model = "nautobot_network_provisioning.workflow"
-
-    def full_width_page(self):
-        # Show steps in a full-width panel
-        return self.render("nautobot_network_provisioning/inc/workflow_steps_table.html")
-
-    def extra_tabs(self):
+    def detail_tabs(self):
+        interface = self.context["object"]
+        from django.urls import reverse
         return [
             {
-                "title": "Designer",
-                "url": reverse("plugins:nautobot_network_provisioning:workflow_designer", kwargs={"pk": self.context["object"].pk}),
-            }
+                "title": "Troubleshooting",
+                "url": reverse("plugins:nautobot_network_provisioning:troubleshooting", kwargs={
+                    "model_label": "dcim.interface",
+                    "pk": interface.pk
+                }),
+            },
         ]
 
-class RequestFormFields(TemplateExtension):
-    model = "nautobot_network_provisioning.requestform"
+template_extensions = [DeviceIntentButtons, InterfaceIntentButtons]
 
-    def full_width_page(self):
-        return self.render("nautobot_network_provisioning/inc/request_form_fields_table.html")
-    
-    def extra_tabs(self):
-        return [
-            {
-                "title": "Form Builder",
-                "url": reverse("plugins:nautobot_network_provisioning:requestform_builder", kwargs={"pk": self.context["object"].pk}),
-            }
-        ]
-
-template_extensions = [TaskImplementationIDEButton, TaskDefinitionImplementations, WorkflowSteps, RequestFormFields]

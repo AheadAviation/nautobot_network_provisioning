@@ -1,61 +1,83 @@
-"""UI URL routes for the Network Provisioning (Automation) app."""
+"""
+URL Configuration for Network Provisioning Plugin v2.0
 
-import logging
+Includes:
+- Portal views for end users
+- Studio views for task/workflow/form authoring
+- API endpoints
+- Troubleshooting tools
+"""
+from django.urls import path, include
+from nautobot.apps.urls import NautobotUIViewSetRouter
+from . import views, portal_views, troubleshooting_views
 
-from django.urls import path
-from nautobot_network_provisioning.execution_action_urls import urlpatterns as execution_action_urlpatterns
-from nautobot_network_provisioning.portal_urls import urlpatterns as portal_urlpatterns
+# ═══════════════════════════════════════════════════════════════════════════
+# VIEWSET ROUTER (Standard Nautobot CRUD Views)
+# ═══════════════════════════════════════════════════════════════════════════
+router = NautobotUIViewSetRouter()
+router.register("task-intents", views.TaskIntentUIViewSet)
+router.register("task-strategies", views.TaskStrategyUIViewSet)
+router.register("workflows", views.WorkflowUIViewSet)
+router.register("request-forms", views.RequestFormUIViewSet)
+router.register("executions", views.ExecutionUIViewSet)
+router.register("automation-providers", views.AutomationProviderUIViewSet)
+router.register("automation-provider-configs", views.AutomationProviderConfigUIViewSet)
 
-logger = logging.getLogger(__name__)
+urlpatterns = [
+    # ═══════════════════════════════════════════════════════════════════════
+    # PORTAL VIEWS (End User Experience)
+    # ═══════════════════════════════════════════════════════════════════════
+    path("portal/", portal_views.PortalView.as_view(), name="portal"),
+    path("portal/<slug:slug>/", portal_views.PortalRequestFormView.as_view(), name="portal_request_form"),
+    
+    # ═══════════════════════════════════════════════════════════════════════
+    # TASK STUDIO v2 (Low-Code Task Editor)
+    # ═══════════════════════════════════════════════════════════════════════
+    path("studio/v2/tasks/", views.TaskStudioV2View.as_view(), name="task_studio_v2"),
+    path("studio/v2/tasks/<uuid:pk>/", views.TaskStudioV2View.as_view(), name="task_studio_v2_edit"),
+    
+    # Legacy route aliases for backwards compatibility (redirect to v2)
+    path("studio/tasks/", views.TaskStudioV2View.as_view(), name="taskintent_studio"),
+    path("studio/tasks/<uuid:pk>/", views.TaskStudioV2View.as_view(), name="taskintent_studio_edit"),
+    
+    # ═══════════════════════════════════════════════════════════════════════
+    # WORKFLOW & FORM DESIGNERS
+    # ═══════════════════════════════════════════════════════════════════════
+    path("studio/workflows/", views.WorkflowDesignerView.as_view(), name="workflow_studio"),
+    path("studio/workflows/<uuid:pk>/", views.WorkflowDesignerView.as_view(), name="workflow_studio_edit"),
+    
+    path("studio/forms/", views.FormDesignerView.as_view(), name="form_studio"),
+    path("studio/forms/<uuid:pk>/", views.FormDesignerView.as_view(), name="form_studio_edit"),
 
-urlpatterns = []
-urlpatterns += portal_urlpatterns
-urlpatterns += execution_action_urlpatterns
+    # ═══════════════════════════════════════════════════════════════════════
+    # STUDIO TOOLS (Embedded SPA Islands)
+    # ═══════════════════════════════════════════════════════════════════════
+    path("studio/tools/troubleshooting/", troubleshooting_views.StudioTroubleshootingLauncherView.as_view(), name="studio_tool_troubleshooting"),
+    
+    # Troubleshooting API endpoints
+    path("api/troubleshooting/run/", troubleshooting_views.TroubleshootingRunAPIView.as_view(), name="api_troubleshooting_run"),
+    path("api/troubleshooting/status/<uuid:pk>/", troubleshooting_views.TroubleshootingStatusAPIView.as_view(), name="api_troubleshooting_status"),
+    path("api/troubleshooting/history/", troubleshooting_views.TroubleshootingHistoryAPIView.as_view(), name="api_troubleshooting_history"),
+    
+    # ═══════════════════════════════════════════════════════════════════════
+    # STUDIO SHELL v4.0 (Multi-Modal IDE Entry Point)
+    # Generic routes MUST come AFTER specific routes!
+    # ═══════════════════════════════════════════════════════════════════════
+    path("studio/", views.StudioShellView.as_view(), name="studio_shell"),
+    path("studio/<str:mode>/", views.StudioShellView.as_view(), name="studio_shell_mode"),
+    path("studio/<str:mode>/<str:item_type>/<uuid:pk>/", views.StudioShellView.as_view(), name="studio_shell_item"),
 
-# NOTE: Nautobot core may import plugin URLs very early during startup (including for management commands).
-# If the full UI viewsets cannot be imported for any reason, we still want the plugin to load so migrations,
-# post_upgrade, etc. can run. UI routes will be unavailable until the import issue is fixed.
-try:
-    from nautobot.apps.urls import NautobotUIViewSetRouter
+    # ═══════════════════════════════════════════════════════════════════════
+    # EXECUTION & TROUBLESHOOTING
+    # ═══════════════════════════════════════════════════════════════════════
+    path("executions/<uuid:pk>/run/", views.ExecutionRunView.as_view(), name="execution_run"),
+    path("troubleshooting/<str:model_label>/<uuid:pk>/", troubleshooting_views.TroubleshootingView.as_view(), name="troubleshooting"),
+    path("troubleshooting/visual/<uuid:pk>/", troubleshooting_views.TroubleshootingVisualView.as_view(), name="troubleshooting_visual"),
 
-    from nautobot_network_provisioning.views import (
-        ExecutionUIViewSet,
-        ProviderConfigUIViewSet,
-        ProviderUIViewSet,
-        RequestFormFieldUIViewSet,
-        RequestFormUIViewSet,
-        TaskDefinitionUIViewSet,
-        TaskImplementationUIViewSet,
-        TemplateIDEView,
-        WorkflowStepUIViewSet,
-        WorkflowUIViewSet,
-        AutomationHomeView,
-        RequestFormBuilderView,
-        WorkflowDesignerView,
-    )
+    # ═══════════════════════════════════════════════════════════════════════
+    # API ENDPOINTS
+    # ═══════════════════════════════════════════════════════════════════════
+    path("api/", include("nautobot_network_provisioning.api.urls")),
+]
 
-    router = NautobotUIViewSetRouter()
-    router.register("tasks", TaskDefinitionUIViewSet)
-    router.register("task-implementations", TaskImplementationUIViewSet)
-    router.register("workflows", WorkflowUIViewSet)
-    router.register("workflow-steps", WorkflowStepUIViewSet)
-    router.register("executions", ExecutionUIViewSet)
-    router.register("providers", ProviderUIViewSet)
-    router.register("provider-configs", ProviderConfigUIViewSet)
-    router.register("request-forms", RequestFormUIViewSet)
-    router.register("request-form-fields", RequestFormFieldUIViewSet)
-
-    urlpatterns += [
-        path("", AutomationHomeView.as_view(), name="home"),
-        path("ide/", TemplateIDEView.as_view(), name="template_ide"),
-        path("ide/<uuid:pk>/", TemplateIDEView.as_view(), name="template_ide"),
-        path("request-forms/<uuid:pk>/builder/", RequestFormBuilderView.as_view(), name="requestform_builder"),
-        path("workflows/<uuid:pk>/designer/", WorkflowDesignerView.as_view(), name="workflow_designer"),
-    ]
-    urlpatterns += router.urls
-except Exception:  # noqa: BLE001
-    # Intentionally swallow to avoid breaking Nautobot startup/management commands.
-    logger.exception("Failed to register nautobot_network_provisioning UI viewset routes; UI links may be invalid.")
-    pass
-
-
+urlpatterns += router.urls
