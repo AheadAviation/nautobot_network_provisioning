@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h1>Troubleshooting: {{ object }}</h1>
+            <p class="text-muted">Interactive Network Path Tracer (Trace from {{ object }})</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Trace Form -->
+        <div class="col-md-4">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <strong>New Path Trace</strong>
+                </div>
+                <div class="panel-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="source_host">Source IP/FQDN</label>
+                            <input type="text" name="source_host" id="source_host" class="form-control" value="{{ default_source_ip }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="destination_host">Destination IP/FQDN</label>
+                            <input type="text" name="destination_host" id="destination_host" class="form-control" placeholder="e.g. 8.8.8.8" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="secrets_group">Secrets Group</label>
+                            <select name="secrets_group" id="secrets_group" class="form-control" required>
+                                <option value="">-- Select --</option>
+                                {% for group in secrets_groups %}
+                                    <option value="{{ group.pk }}">{{ group.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="mdi mdi-magnify"></i> Run Trace
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- History -->
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <strong>Trace History</strong>
+                </div>
+                <div class="panel-body" style="padding: 0;">
+                    <div class="list-group list-group-flush">
+                        {% for record in records %}
+                            <a href="#" class="list-group-item list-group-item-action record-selector" data-id="{{ record.pk }}">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ record.destination_host }}</h6>
+                                    <small>{{ record.start_time|timesince }} ago</small>
+                                </div>
+                                <p class="mb-1 small">Status: <span class="label label-{{ record.status.name|lower }}">{{ record.status }}</span></p>
+                            </a>
+                        {% empty %}
+                            <div class="p-3 text-muted">No history found.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization -->
+        <div class="col-md-8">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <strong>Path Visualization</strong>
+                </div>
+                <div class="panel-body" style="height: 650px; padding: 0;">
+                    <iframe id="visual-frame" src="" style="width: 100%; height: 100%; border: none;" class="d-none"></iframe>
+                    <div id="visual-placeholder" class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                        <i class="mdi mdi-map-marker-path mdi-48px opacity-20 mb-3"></i>
+                        <p>Select a record from the history to view the visualization.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+{{ block.super }}
+<script>
+    document.querySelectorAll('.record-selector').forEach(item => {
+        item.addEventListener('click', event => {
+            event.preventDefault();
+            const recordId = item.getAttribute('data-id');
+            const frame = document.getElementById('visual-frame');
+            const placeholder = document.getElementById('visual-placeholder');
+            
+            frame.src = "{% url 'plugins:nautobot_network_provisioning:troubleshooting_visual' pk='00000000-0000-0000-0000-000000000000' %}".replace('00000000-0000-0000-0000-000000000000', recordId);
+            frame.classList.remove('d-none');
+            placeholder.classList.add('d-none');
+            
+            // Highlight active
+            document.querySelectorAll('.record-selector').forEach(r => r.classList.remove('active'));
+            item.classList.add('active');
+        });
+    });
+</script>
+{% endblock %}
+

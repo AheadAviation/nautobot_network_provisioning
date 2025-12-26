@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Orchestrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {% load static %}
+    <style>
+        :root {
+            --bg-darkest: #0d0d0d;
+            --bg-darker: #141414;
+            --bg-dark: #1a1a1a;
+            --bg-panel: #1e1e1e;
+            --bg-surface: #252526;
+            --bg-hover: #2d2d30;
+            --bg-active: #094771;
+            
+            --border-subtle: #2d2d30;
+            --border-default: #3e3e42;
+            --border-accent: #007acc;
+            
+            --text-muted: #5a5a5a;
+            --text-secondary: #858585;
+            --text-primary: #cccccc;
+            --text-bright: #e4e4e4;
+            
+            --accent-orange: #f48771;
+            --accent-cyan: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-purple: #c586c0;
+            --accent-yellow: #dcdcaa;
+            --accent-green: #22c55e;
+            --accent-red: #f14c4c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-darkest);
+            color: var(--text-primary);
+        }
+
+        #workflow-orchestrator {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-default);
+            height: 52px;
+            flex-shrink: 0;
+        }
+
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .toolbar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent-purple);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .workflow-name-input {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-default);
+            color: var(--text-bright);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 280px;
+        }
+
+        .workflow-name-input:focus {
+            outline: none;
+            border-color: var(--accent-purple);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-accent);
+        }
+
+        .btn-primary {
+            background: var(--accent-purple);
+            border-color: var(--accent-purple);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #a86da8;
+        }
+
+        .btn-success {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+            color: white;
+        }
+
+        /* Main Content */
+        .content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Node Toolbox Sidebar */
+        .toolbox-sidebar {
+            width: 260px;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-default);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .toolbox-header {
+            padding: 14px 16px;
+            background: var(--bg-darker);
+            border-bottom: 1px solid var(--border-default);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .toolbox-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .toolbox-section {
+            margin-bottom: 20px;
+        }
+
+        .toolbox-section-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            padding: 0 4px;
+        }
+
+        .node-template {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: grab;
+            transition: all 0.2s ease;
+        }
+
+        .node-template:hover {
+            border-color: var(--accent-purple);
+            background: var(--bg-hover);
+            transform: translateX(4px);
+        }
+
+        .node-template:active {
+            cursor: grabbing;
+        }
+
+        .node-template-icon {
+            font-size: 20px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: var(--bg-dark);
+        }
+
+        .node-template[data-type="start"] .node-template-icon { color: var(--accent-green); background: rgba(34, 197, 94, 0.15); }
+        .node-template[data-type="end"] .node-template-icon { color: var(--accent-red); background: rgba(241, 76, 76, 0.15); }
+        .node-template[data-type="task"] .node-template-icon { color: var(--accent-cyan); background: rgba(78, 201, 176, 0.15); }
+        .node-template[data-type="decision"] .node-template-icon { color: var(--accent-yellow); background: rgba(220, 220, 170, 0.15); }
+        .node-template[data-type="fork"] .node-template-icon { color: var(--accent-purple); background: rgba(197, 134, 192, 0.15); }
+        .node-template[data-type="approval"] .node-template-icon { color: var(--accent-orange); background: rgba(244, 135, 113, 0.15); }
+
+        .node-template-info {
+            flex: 1;
+        }
+
+        .node-template-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-bright);
+        }
+
+        .node-template-desc {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            background: var(--bg-dark);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .canvas-grid {
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* Workflow Nodes on Canvas */
+        .workflow-node {
+            position: absolute;
+            min-width: 180px;
+            background: var(--bg-surface);
+            border: 2px solid var(--border-default);
+            border-radius: 10px;
+            cursor: move;
+            user-select: none;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .workflow-node:hover {
+            border-color: var(--accent-purple);
+        }
+
+        .workflow-node.selected {
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 0 3px rgba(197, 134, 192, 0.3);
+        }
+
+        .workflow-node-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .workflow-node-icon {
+            font-size: 18px;
+        }
+
+        .workflow-node[data-type="start"] .workflow-node-icon { color: var(--accent-green); }
+        .workflow-node[data-type="end"] .workflow-node-icon { color: var(--accent-red); }
+        .workflow-node[data-type="task"] .workflow-node-icon { color: var(--accent-cyan); }
+        .workflow-node[data-type="decision"] .workflow-node-icon { color: var(--accent-yellow); }
+
+        .workflow-node-title {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-bright);
+        }
+
+        .workflow-node-body {
+            padding: 10px 14px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* Connection Points */
+        .node-port {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: var(--bg-hover);
+            border: 2px solid var(--accent-purple);
+            border-radius: 50%;
+            cursor: crosshair;
+            z-index: 10;
+        }
+
+        .node-port.input {
+            top: 50%;
+            left: -6px;
+            transform: translateY(-50%);
+        }
+
+        .node-port.output {
+            top: 50%;
+            right: -6px;
+            transform: translateY(-50%);
+        }
+
+        .node-port:hover {
+            background: var(--accent-purple);
+        }
+
+        /* SVG Connections Layer */
+        .connections-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .connection-line {
+            fill: none;
+            stroke: var(--accent-purple);
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .connection-line.success { stroke: var(--accent-green); }
+        .connection-line.failure { stroke: var(--accent-red); stroke-dasharray: 5, 5; }
+
+        /* Properties Panel */
+        .properties-panel {
+            width: 300px;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border-default);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .properties-panel.open {
+            transform: translateX(0);
+        }
+
+        .properties-header {
+            padding: 14px 16px;
+            background: var(--bg-darker);
+            border-bottom: 1px solid var(--border-default);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .properties-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .properties-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .properties-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .property-group {
+            margin-bottom: 20px;
+        }
+
+        .property-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .property-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .property-input:focus {
+            outline: none;
+            border-color: var(--accent-purple);
+        }
+
+        /* Canvas Controls */
+        .canvas-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .canvas-control-btn {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .canvas-control-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-purple);
+        }
+
+        /* Empty State */
+        .canvas-empty {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 5;
+        }
+
+        .canvas-empty-icon {
+            font-size: 72px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .canvas-empty h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .canvas-empty p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            max-width: 360px;
+        }
+
+        /* Minimap */
+        .minimap {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 160px;
+            height: 100px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .minimap-viewport {
+            position: absolute;
+            border: 2px solid var(--accent-purple);
+            background: rgba(197, 134, 192, 0.1);
+        }
+
+        /* Status Bar */
+        .status-bar {
+            padding: 8px 16px;
+            background: var(--accent-purple);
+            color: white;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="workflow-orchestrator">
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <span class="toolbar-title">☍ Workflow Orchestrator</span>
+                <input type="text" class="workflow-name-input" id="workflow-name" 
+                       value="{{ object.name|default:'New Workflow' }}" placeholder="Workflow name...">
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn" onclick="WorkflowOrchestrator.validate()">Validate</button>
+                <button class="btn" onclick="WorkflowOrchestrator.testRun()">Test Run</button>
+                <button class="btn btn-primary" onclick="WorkflowOrchestrator.save()">Save Workflow</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Node Toolbox -->
+            <div class="toolbox-sidebar">
+                <div class="toolbox-header">Node Library</div>
+                <div class="toolbox-content">
+                    <div class="toolbox-section">
+                        <div class="toolbox-section-title">Control Flow</div>
+                        <div class="node-template" data-type="start" draggable="true">
+                            <div class="node-template-icon">▶</div>
+                            <div class="node-template-info">
+                                <div class="node-template-name">Start</div>
+                                <div class="node-template-desc">Workflow entry point</div>
+                            </div>
+                        </div>
+                        <div class="node-template" data-type="end" draggable="true">
+                            <div class="node-template-icon">⏹</div>
+                            <div class="node-template-info">
+                                <div class="node-template-name">End</div>
+                                <div class="node-template-desc">Workflow exit point</div>
+                            </div>
+                        </div>
+                        <div class="node-template" data-type="decision" draggable="true">
+                            <div class="node-template-icon">◇</div>
+                            <div class="node-template-info">
+                                <div class="node-template-name">Decision</div>
+                                <div class="node-template-desc">Conditional branching</div>
+                            </div>
+                        </div>
+                        <div class="node-template" data-type="fork" draggable="true">
+                            <div class="node-template-icon">⋔</div>
+                            <div class="node-template-info">
+                                <div class="node-template-name">Fork / Join</div>
+                                <div class="node-template-desc">Parallel execution</div>
+                            </div>
+                        </div>
+                        <div class="node-template" data-type="approval" draggable="true">
+                            <div class="node-template-icon">✋</div>
+                            <div class="node-template-info">
+                                <div class="node-template-name">Approval</div>
+                                <div class="node-template-desc">Human approval gate</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="toolbox-section">
+                        <div class="toolbox-section-title">Task Intents</div>
+                        <div id="task-library">
+                            <!-- Tasks loaded dynamically -->
+                            <div style="padding: 12px; color: var(--text-secondary); font-size: 11px; text-align: center;">
+                                Loading tasks...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="canvas-area">
+                <div class="canvas-grid" id="canvas">
+                    <!-- SVG Layer for Connections -->
+                    <svg class="connections-layer" id="connections-svg">
+                        <!-- Connection lines drawn here -->
+                    </svg>
+
+                    <!-- Nodes placed here -->
+                    <div id="nodes-container"></div>
+
+                    <!-- Empty State -->
+                    <div class="canvas-empty" id="empty-state">
+                        <div class="canvas-empty-icon">☍</div>
+                        <h2>Build Your Workflow</h2>
+                        <p>Drag nodes from the library on the left and connect them to create your automation workflow.</p>
+                    </div>
+                </div>
+
+                <!-- Canvas Controls -->
+                <div class="canvas-controls">
+                    <button class="canvas-control-btn" onclick="WorkflowOrchestrator.zoomIn()" title="Zoom In">+</button>
+                    <button class="canvas-control-btn" onclick="WorkflowOrchestrator.zoomOut()" title="Zoom Out">−</button>
+                    <button class="canvas-control-btn" onclick="WorkflowOrchestrator.fitView()" title="Fit to View">⊡</button>
+                </div>
+
+                <!-- Minimap -->
+                <div class="minimap" id="minimap">
+                    <div class="minimap-viewport" id="minimap-viewport"></div>
+                </div>
+            </div>
+
+            <!-- Properties Panel -->
+            <div class="properties-panel" id="properties-panel">
+                <div class="properties-header">
+                    <span class="properties-title">Node Properties</span>
+                    <button class="properties-close" onclick="WorkflowOrchestrator.closeProperties()">×</button>
+                </div>
+                <div class="properties-content">
+                    <div class="property-group">
+                        <label class="property-label">Node Name</label>
+                        <input type="text" class="property-input" id="prop-node-name" placeholder="Enter node name">
+                    </div>
+                    <div class="property-group">
+                        <label class="property-label">Description</label>
+                        <textarea class="property-input" id="prop-node-desc" rows="3" placeholder="Node description"></textarea>
+                    </div>
+                    <div class="property-group" id="prop-task-section" style="display: none;">
+                        <label class="property-label">Task Intent</label>
+                        <select class="property-input" id="prop-task-select">
+                            <option value="">Select task...</option>
+                        </select>
+                    </div>
+                    <div class="property-group" id="prop-condition-section" style="display: none;">
+                        <label class="property-label">Condition</label>
+                        <input type="text" class="property-input" id="prop-condition" placeholder="e.g., result.success == true">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span id="status-text">Ready</span>
+            <span id="node-count">0 nodes</span>
+        </div>
+    </div>
+
+    <script>
+        const WorkflowOrchestrator = {
+            nodes: [],
+            connections: [],
+            selectedNode: null,
+            draggedTemplate: null,
+            nextNodeId: 1,
+            zoom: 1,
+            apiRoot: '/plugins/network-provisioning/api/',
+            csrfToken: "{{ csrf_token }}",
+            workflowId: "{{ object.pk|default:'' }}",
+
+            init: function() {
+                this.loadWorkflow();
+                this.loadTaskLibrary();
+                this.setupDragDrop();
+                this.setupCanvasInteraction();
+                this.updateStatus('Workflow Orchestrator ready');
+            },
+
+            loadWorkflow: function() {
+                const workflowJson = {{ workflow_json|default:"{}"|safe }};
+                if (workflowJson.graph_definition) {
+                    this.nodes = workflowJson.graph_definition.nodes || [];
+                    this.connections = workflowJson.graph_definition.connections || [];
+                    this.renderNodes();
+                    this.renderConnections();
+                    this.hideEmptyState();
+                }
+            },
+
+            loadTaskLibrary: async function() {
+                try {
+                    const res = await fetch(`${this.apiRoot}task-intents/`);
+                    const data = await res.json();
+                    const container = document.getElementById('task-library');
+                    container.innerHTML = '';
+                    
+                    (data.results || []).forEach(task => {
+                        const el = document.createElement('div');
+                        el.className = 'node-template';
+                        el.dataset.type = 'task';
+                        el.dataset.taskId = task.id;
+                        el.draggable = true;
+                        el.innerHTML = `
+                            <div class="node-template-icon" style="color: var(--accent-cyan); background: rgba(78, 201, 176, 0.15);">⚡</div>
+                            <div class="node-template-info">
+                                <div class="node-template-name">${task.name}</div>
+                                <div class="node-template-desc">${task.description || 'Task Intent'}</div>
+                            </div>
+                        `;
+                        container.appendChild(el);
+                    });
+
+                    if ((data.results || []).length === 0) {
+                        container.innerHTML = '<div style="padding: 12px; color: var(--text-secondary); font-size: 11px; text-align: center;">No tasks defined yet</div>';
+                    }
+                } catch (err) {
+                    console.error('Failed to load tasks:', err);
+                }
+            },
+
+            setupDragDrop: function() {
+                document.querySelectorAll('.node-template').forEach(template => {
+                    template.addEventListener('dragstart', (e) => {
+                        this.draggedTemplate = {
+                            type: template.dataset.type,
+                            taskId: template.dataset.taskId || null,
+                            name: template.querySelector('.node-template-name').textContent
+                        };
+                        e.dataTransfer.effectAllowed = 'copy';
+                    });
+                });
+
+                const canvas = document.getElementById('canvas');
+                canvas.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                });
+
+                canvas.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    if (!this.draggedTemplate) return;
+
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left - 90;
+                    const y = e.clientY - rect.top - 40;
+
+                    this.addNode(this.draggedTemplate.type, this.draggedTemplate.name, x, y, this.draggedTemplate.taskId);
+                    this.draggedTemplate = null;
+                });
+            },
+
+            setupCanvasInteraction: function() {
+                // Click on canvas to deselect
+                document.getElementById('canvas').addEventListener('click', (e) => {
+                    if (e.target.id === 'canvas' || e.target.classList.contains('canvas-grid')) {
+                        this.deselectAll();
+                    }
+                });
+            },
+
+            addNode: function(type, name, x, y, taskId = null) {
+                const node = {
+                    id: `node-${this.nextNodeId++}`,
+                    type: type,
+                    name: name,
+                    x: x,
+                    y: y,
+                    taskId: taskId,
+                    inputs: [],
+                    outputs: []
+                };
+
+                this.nodes.push(node);
+                this.renderNode(node);
+                this.hideEmptyState();
+                this.updateNodeCount();
+                this.updateStatus(`Added ${type} node: ${name}`);
+            },
+
+            renderNodes: function() {
+                const container = document.getElementById('nodes-container');
+                container.innerHTML = '';
+                this.nodes.forEach(node => this.renderNode(node));
+            },
+
+            renderNode: function(node) {
+                const container = document.getElementById('nodes-container');
+                const el = document.createElement('div');
+                el.className = 'workflow-node';
+                el.id = node.id;
+                el.dataset.type = node.type;
+                el.style.left = `${node.x}px`;
+                el.style.top = `${node.y}px`;
+
+                const icons = {
+                    start: '▶',
+                    end: '⏹',
+                    task: '⚡',
+                    decision: '◇',
+                    fork: '⋔',
+                    approval: '✋'
+                };
+
+                el.innerHTML = `
+                    <div class="node-port input"></div>
+                    <div class="workflow-node-header">
+                        <span class="workflow-node-icon">${icons[node.type] || '●'}</span>
+                        <span class="workflow-node-title">${node.name}</span>
+                    </div>
+                    <div class="workflow-node-body">${node.type.charAt(0).toUpperCase() + node.type.slice(1)}</div>
+                    <div class="node-port output"></div>
+                `;
+
+                // Make draggable
+                this.makeNodeDraggable(el, node);
+
+                // Click to select
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.selectNode(node.id);
+                });
+
+                container.appendChild(el);
+            },
+
+            makeNodeDraggable: function(el, node) {
+                let isDragging = false;
+                let startX, startY, nodeStartX, nodeStartY;
+
+                el.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('node-port')) return;
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    nodeStartX = node.x;
+                    nodeStartY = node.y;
+                    el.style.zIndex = 100;
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    node.x = nodeStartX + dx;
+                    node.y = nodeStartY + dy;
+                    el.style.left = `${node.x}px`;
+                    el.style.top = `${node.y}px`;
+                    this.renderConnections();
+                });
+
+                document.addEventListener('mouseup', () => {
+                    isDragging = false;
+                    el.style.zIndex = '';
+                });
+            },
+
+            selectNode: function(nodeId) {
+                this.deselectAll();
+                const node = this.nodes.find(n => n.id === nodeId);
+                if (!node) return;
+
+                this.selectedNode = node;
+                document.getElementById(nodeId).classList.add('selected');
+                this.openProperties(node);
+            },
+
+            deselectAll: function() {
+                document.querySelectorAll('.workflow-node').forEach(n => n.classList.remove('selected'));
+                this.selectedNode = null;
+                this.closeProperties();
+            },
+
+            openProperties: function(node) {
+                const panel = document.getElementById('properties-panel');
+                panel.classList.add('open');
+
+                document.getElementById('prop-node-name').value = node.name;
+                document.getElementById('prop-node-desc').value = node.description || '';
+
+                // Show/hide conditional sections
+                document.getElementById('prop-task-section').style.display = node.type === 'task' ? 'block' : 'none';
+                document.getElementById('prop-condition-section').style.display = node.type === 'decision' ? 'block' : 'none';
+            },
+
+            closeProperties: function() {
+                document.getElementById('properties-panel').classList.remove('open');
+            },
+
+            hideEmptyState: function() {
+                document.getElementById('empty-state').style.display = 'none';
+            },
+
+            renderConnections: function() {
+                const svg = document.getElementById('connections-svg');
+                svg.innerHTML = '';
+
+                this.connections.forEach(conn => {
+                    const sourceNode = document.getElementById(conn.source);
+                    const targetNode = document.getElementById(conn.target);
+                    if (!sourceNode || !targetNode) return;
+
+                    const sourcePort = sourceNode.querySelector('.node-port.output');
+                    const targetPort = targetNode.querySelector('.node-port.input');
+
+                    const sourceRect = sourcePort.getBoundingClientRect();
+                    const targetRect = targetPort.getBoundingClientRect();
+                    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+
+                    const x1 = sourceRect.left + sourceRect.width / 2 - canvasRect.left;
+                    const y1 = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
+                    const x2 = targetRect.left + targetRect.width / 2 - canvasRect.left;
+                    const y2 = targetRect.top + targetRect.height / 2 - canvasRect.top;
+
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const midX = (x1 + x2) / 2;
+                    path.setAttribute('d', `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`);
+                    path.setAttribute('class', `connection-line ${conn.type || ''}`);
+                    svg.appendChild(path);
+                });
+            },
+
+            updateNodeCount: function() {
+                document.getElementById('node-count').textContent = `${this.nodes.length} nodes`;
+            },
+
+            updateStatus: function(text) {
+                document.getElementById('status-text').textContent = text;
+            },
+
+            zoomIn: function() {
+                this.zoom = Math.min(this.zoom * 1.2, 2);
+                this.applyZoom();
+            },
+
+            zoomOut: function() {
+                this.zoom = Math.max(this.zoom / 1.2, 0.5);
+                this.applyZoom();
+            },
+
+            fitView: function() {
+                this.zoom = 1;
+                this.applyZoom();
+            },
+
+            applyZoom: function() {
+                const canvas = document.getElementById('canvas');
+                canvas.style.transform = `scale(${this.zoom})`;
+                canvas.style.transformOrigin = 'center center';
+            },
+
+            validate: function() {
+                // Check for start and end nodes
+                const hasStart = this.nodes.some(n => n.type === 'start');
+                const hasEnd = this.nodes.some(n => n.type === 'end');
+
+                if (!hasStart) {
+                    this.updateStatus('⚠️ Workflow needs a Start node');
+                    return false;
+                }
+                if (!hasEnd) {
+                    this.updateStatus('⚠️ Workflow needs an End node');
+                    return false;
+                }
+
+                this.updateStatus('✓ Workflow is valid');
+                return true;
+            },
+
+            testRun: function() {
+                if (!this.validate()) return;
+                this.updateStatus('▶ Test run started...');
+                // TODO: Implement test run via API
+            },
+
+            save: async function() {
+                const name = document.getElementById('workflow-name').value.trim();
+                if (!name) {
+                    this.updateStatus('⚠️ Please enter a workflow name');
+                    return;
+                }
+
+                const graphDefinition = {
+                    nodes: this.nodes,
+                    connections: this.connections
+                };
+
+                const payload = {
+                    name: name,
+                    slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+                    graph_definition: graphDefinition
+                };
+
+                try {
+                    const method = this.workflowId ? 'PATCH' : 'POST';
+                    const url = this.workflowId 
+                        ? `${this.apiRoot}workflows/${this.workflowId}/`
+                        : `${this.apiRoot}workflows/`;
+
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.workflowId = data.id;
+                        this.updateStatus('✓ Workflow saved successfully');
+                    } else {
+                        const error = await res.json();
+                        this.updateStatus(`⚠️ Save failed: ${JSON.stringify(error)}`);
+                    }
+                } catch (err) {
+                    this.updateStatus(`⚠️ Save failed: ${err.message}`);
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => WorkflowOrchestrator.init());
+    </script>
+</body>
+</html>

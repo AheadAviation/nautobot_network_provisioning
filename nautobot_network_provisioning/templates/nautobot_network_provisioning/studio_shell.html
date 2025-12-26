@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automation Studio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-icons/3.0.1/iconfont/material-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {% load static %}
+    <style>
+        :root {
+            /* Monokai-inspired theme with accent colors */
+            --bg-darkest: #0d0d0d;
+            --bg-darker: #141414;
+            --bg-dark: #1a1a1a;
+            --bg-panel: #1e1e1e;
+            --bg-surface: #252526;
+            --bg-hover: #2d2d30;
+            --bg-active: #094771;
+            
+            --border-subtle: #2d2d30;
+            --border-default: #3e3e42;
+            --border-accent: #007acc;
+            
+            --text-muted: #5a5a5a;
+            --text-secondary: #858585;
+            --text-primary: #cccccc;
+            --text-bright: #e4e4e4;
+            
+            /* Accent colors - Monokai palette */
+            --accent-orange: #f48771;
+            --accent-cyan: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-purple: #c586c0;
+            --accent-yellow: #dcdcaa;
+            --accent-green: #22c55e;
+            --accent-red: #f14c4c;
+            
+            --activity-bar-width: 56px;
+            --sidebar-width: 280px;
+            --bottom-panel-height: 280px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-darkest);
+            color: var(--text-primary);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           STUDIO SHELL LAYOUT - Four Zone Architecture
+           ═══════════════════════════════════════════════════════════ */
+        
+        #studio-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .studio-main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           ACTIVITY BAR - Mode Selector (VS Code Style)
+           ═══════════════════════════════════════════════════════════ */
+        
+        .activity-bar {
+            width: var(--activity-bar-width);
+            background: var(--bg-darker);
+            border-right: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            flex-shrink: 0;
+        }
+
+        .activity-bar-top {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .activity-bar-bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .activity-item {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 24px;
+        }
+
+        .activity-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-bright);
+        }
+
+        .activity-item.active {
+            background: linear-gradient(135deg, var(--accent-orange) 0%, #ff6b4a 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(244, 135, 113, 0.3);
+        }
+
+        .activity-item.active::before {
+            content: '';
+            position: absolute;
+            left: -4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 24px;
+            background: var(--accent-orange);
+            border-radius: 0 3px 3px 0;
+        }
+
+        .activity-item .badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-red);
+            border-radius: 50%;
+        }
+
+        .activity-item-tooltip {
+            position: absolute;
+            left: 60px;
+            background: var(--bg-surface);
+            color: var(--text-bright);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .activity-item:hover .activity-item-tooltip {
+            opacity: 1;
+        }
+
+        .activity-item-tooltip kbd {
+            background: var(--bg-hover);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-left: 8px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Activity bar icons using emoji + custom icons */
+        .activity-icon {
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           CONTEXT SIDEBAR - Dynamic Content Per Mode
+           ═══════════════════════════════════════════════════════════ */
+        
+        .context-sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-default);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
+            transition: width 0.3s ease;
+        }
+
+        .context-sidebar.collapsed {
+            width: 0;
+            border-right: none;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            background: var(--bg-darker);
+            border-bottom: 1px solid var(--border-default);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           MAIN STAGE - Primary Work Area
+           ═══════════════════════════════════════════════════════════ */
+        
+        .main-stage {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .stage-content {
+            flex: 1;
+            overflow: hidden;
+            display: none;
+        }
+
+        .stage-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Mode-specific stage content styling */
+        .stage-content iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           BOTTOM PANEL - Flight Recorder
+           ═══════════════════════════════════════════════════════════ */
+        
+        .bottom-panel {
+            height: 0;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-default);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: height 0.3s ease;
+        }
+
+        .bottom-panel.expanded {
+            height: var(--bottom-panel-height);
+        }
+
+        .bottom-panel-header {
+            padding: 8px 16px;
+            background: var(--bg-darker);
+            border-bottom: 1px solid var(--border-default);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .bottom-panel-tabs {
+            display: flex;
+            gap: 16px;
+        }
+
+        .bottom-panel-tab {
+            padding: 4px 8px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .bottom-panel-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .bottom-panel-tab.active {
+            color: var(--accent-orange);
+            border-bottom-color: var(--accent-orange);
+        }
+
+        .bottom-panel-content {
+            flex: 1;
+            overflow: auto;
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .bottom-panel-toggle {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+        }
+
+        .bottom-panel-toggle:hover {
+            color: var(--text-primary);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           MODE 1: CATALOG EXPLORER (Library)
+           ═══════════════════════════════════════════════════════════ */
+        
+        .catalog-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .tree-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            gap: 10px;
+            transition: all 0.15s ease;
+            margin: 2px 0;
+        }
+
+        .tree-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .tree-item.active {
+            background: var(--bg-active);
+        }
+
+        .tree-item-icon {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .tree-item-name {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .tree-item-count {
+            font-size: 10px;
+            color: var(--text-secondary);
+            background: var(--bg-hover);
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .tree-item[data-type="folder"] .tree-item-icon { color: var(--accent-yellow); }
+        .tree-item[data-type="task"] .tree-item-icon { color: var(--accent-cyan); }
+        .tree-item[data-type="workflow"] .tree-item-icon { color: var(--accent-purple); }
+        .tree-item[data-type="form"] .tree-item-icon { color: var(--accent-blue); }
+
+        .tree-children {
+            margin-left: 20px;
+        }
+
+        /* Dashboard View */
+        .dashboard-view {
+            padding: 32px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .dashboard-header {
+            margin-bottom: 32px;
+        }
+
+        .dashboard-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-bright);
+            margin-bottom: 8px;
+        }
+
+        .dashboard-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-accent);
+            transform: translateY(-2px);
+        }
+
+        .stat-icon {
+            font-size: 28px;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: var(--bg-hover);
+        }
+
+        .stat-card[data-type="tasks"] .stat-icon { background: rgba(78, 201, 176, 0.15); color: var(--accent-cyan); }
+        .stat-card[data-type="workflows"] .stat-icon { background: rgba(197, 134, 192, 0.15); color: var(--accent-purple); }
+        .stat-card[data-type="forms"] .stat-icon { background: rgba(86, 156, 214, 0.15); color: var(--accent-blue); }
+        .stat-card[data-type="executions"] .stat-icon { background: rgba(34, 197, 94, 0.15); color: var(--accent-green); }
+
+        .stat-info h3 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-bright);
+        }
+
+        .stat-info p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .quick-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quick-action-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        .quick-action-btn .icon {
+            font-size: 18px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           MODE 2: TASK STUDIO (Code) - Loaded via iframe
+           ═══════════════════════════════════════════════════════════ */
+
+        /* Task studio is loaded in iframe for isolation */
+
+        /* ═══════════════════════════════════════════════════════════
+           MODE 3: WORKFLOW ORCHESTRATOR (Flow)
+           ═══════════════════════════════════════════════════════════ */
+        
+        .workflow-canvas {
+            flex: 1;
+            background: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+            background-size: 20px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .workflow-empty {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .workflow-empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .workflow-empty h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .workflow-empty p {
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        /* Node Library Sidebar */
+        .node-library {
+            padding: 12px;
+        }
+
+        .node-library-section {
+            margin-bottom: 20px;
+        }
+
+        .node-library-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            padding: 0 8px;
+        }
+
+        .node-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            cursor: grab;
+            transition: all 0.2s ease;
+        }
+
+        .node-item:hover {
+            border-color: var(--accent-cyan);
+            background: var(--bg-hover);
+        }
+
+        .node-item:active {
+            cursor: grabbing;
+        }
+
+        .node-item-icon {
+            font-size: 16px;
+        }
+
+        .node-item[data-node-type="task"] .node-item-icon { color: var(--accent-cyan); }
+        .node-item[data-node-type="decision"] .node-item-icon { color: var(--accent-yellow); }
+        .node-item[data-node-type="fork"] .node-item-icon { color: var(--accent-purple); }
+        .node-item[data-node-type="start"] .node-item-icon { color: var(--accent-green); }
+        .node-item[data-node-type="end"] .node-item-icon { color: var(--accent-red); }
+
+        .node-item-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           MODE 4: FORM DESIGNER (UI)
+           ═══════════════════════════════════════════════════════════ */
+        
+        .form-canvas {
+            flex: 1;
+            background: var(--bg-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+        }
+
+        .form-preview-container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-default);
+            border-radius: 12px;
+            min-height: 400px;
+            padding: 32px;
+        }
+
+        .form-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 48px;
+        }
+
+        .form-empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Widget Library Sidebar */
+        .widget-library {
+            padding: 12px;
+        }
+
+        .widget-category {
+            margin-bottom: 20px;
+        }
+
+        .widget-category-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            padding: 0 8px;
+        }
+
+        .widget-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            cursor: grab;
+            transition: all 0.2s ease;
+        }
+
+        .widget-item:hover {
+            border-color: var(--accent-blue);
+            background: var(--bg-hover);
+        }
+
+        .widget-item-icon {
+            font-size: 16px;
+            color: var(--accent-blue);
+        }
+
+        .widget-item-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           EXECUTION LOG ENTRIES
+           ═══════════════════════════════════════════════════════════ */
+        
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .log-entry-time {
+            color: var(--text-muted);
+            margin-right: 12px;
+        }
+
+        .log-entry-level {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .log-entry-level.info { background: rgba(86, 156, 214, 0.2); color: var(--accent-blue); }
+        .log-entry-level.success { background: rgba(34, 197, 94, 0.2); color: var(--accent-green); }
+        .log-entry-level.warning { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); }
+        .log-entry-level.error { background: rgba(241, 76, 76, 0.2); color: var(--accent-red); }
+
+        .log-entry-message {
+            color: var(--text-primary);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           UTILITY CLASSES
+           ═══════════════════════════════════════════════════════════ */
+        
+        .btn {
+            padding: 8px 16px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-accent);
+        }
+
+        .btn-primary {
+            background: var(--accent-orange);
+            border-color: var(--accent-orange);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #e07660;
+            border-color: #e07660;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Hide scrollbar but allow scrolling */
+        .scrollbar-hidden::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollbar-hidden::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scrollbar-hidden::-webkit-scrollbar-thumb {
+            background: var(--border-default);
+            border-radius: 3px;
+        }
+
+        .scrollbar-hidden::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div id="studio-shell">
+        <!-- Main Content Area -->
+        <div class="studio-main">
+            <!-- Activity Bar (Mode Selector) -->
+            <div class="activity-bar">
+                <div class="activity-bar-top">
+                    <div class="activity-item" data-action="exit" title="Exit Studio">
+                        <span class="activity-icon">🚪</span>
+                        <span class="activity-item-tooltip">Exit</span>
+                    </div>
+                    <div class="activity-item active" data-mode="library" title="Catalog Explorer">
+                        <span class="activity-icon">📁</span>
+                        <span class="activity-item-tooltip">Library <kbd>⌘1</kbd></span>
+                    </div>
+                    <div class="activity-item" data-mode="code" title="Task Studio">
+                        <span class="activity-icon">💻</span>
+                        <span class="activity-item-tooltip">Code <kbd>⌘2</kbd></span>
+                    </div>
+                    <div class="activity-item" data-mode="flow" title="Workflow Orchestrator">
+                        <span class="activity-icon">☍</span>
+                        <span class="activity-item-tooltip">Flow <kbd>⌘3</kbd></span>
+                    </div>
+                    <div class="activity-item" data-mode="form" title="Form Designer">
+                        <span class="activity-icon">📋</span>
+                        <span class="activity-item-tooltip">UI <kbd>⌘4</kbd></span>
+                    </div>
+                </div>
+                <div class="activity-bar-bottom">
+                    <div class="activity-item" data-action="toggle-panel" title="Toggle Output">
+                        <span class="activity-icon">⎔</span>
+                        <span class="activity-item-tooltip">Output <kbd>⌘J</kbd></span>
+                    </div>
+                    <div class="activity-item" data-action="settings" title="Settings">
+                        <span class="activity-icon">⚙</span>
+                        <span class="activity-item-tooltip">Settings</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Context Sidebar -->
+            <div class="context-sidebar" id="context-sidebar">
+                <!-- Library Mode Sidebar -->
+                <div class="sidebar-content" data-sidebar="library">
+                    <div class="sidebar-header">
+                        <span class="sidebar-title">Explorer</span>
+                    </div>
+                    <div style="padding: 12px;">
+                        <input type="text" class="search-input" id="catalog-search" placeholder="Search catalog...">
+                    </div>
+                    <div class="catalog-tree scrollbar-hidden" id="catalog-tree">
+                        <!-- Tree items loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- Code Mode Sidebar - Hidden (Task Studio has its own sidebar in iframe) -->
+                <div class="sidebar-content" data-sidebar="code" style="display: none;">
+                    <!-- Intentionally empty - Task Studio provides its own sidebar -->
+                </div>
+
+                <!-- Flow Mode Sidebar (Node Library) -->
+                <div class="sidebar-content" data-sidebar="flow" style="display: none;">
+                    <div class="sidebar-header">
+                        <span class="sidebar-title">Nodes</span>
+                    </div>
+                    <div class="node-library scrollbar-hidden">
+                        <div class="node-library-section">
+                            <div class="node-library-title">Control Flow</div>
+                            <div class="node-item" data-node-type="start" draggable="true">
+                                <span class="node-item-icon">▶</span>
+                                <span class="node-item-name">Start</span>
+                            </div>
+                            <div class="node-item" data-node-type="end" draggable="true">
+                                <span class="node-item-icon">⏹</span>
+                                <span class="node-item-name">End</span>
+                            </div>
+                            <div class="node-item" data-node-type="decision" draggable="true">
+                                <span class="node-item-icon">◇</span>
+                                <span class="node-item-name">Decision</span>
+                            </div>
+                            <div class="node-item" data-node-type="fork" draggable="true">
+                                <span class="node-item-icon">⋔</span>
+                                <span class="node-item-name">Fork/Join</span>
+                            </div>
+                        </div>
+                        <div class="node-library-section">
+                            <div class="node-library-title">Tasks</div>
+                            <div id="task-nodes-list">
+                                <!-- Task nodes loaded dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Mode Sidebar (Widget Library) -->
+                <div class="sidebar-content" data-sidebar="form" style="display: none;">
+                    <div class="sidebar-header">
+                        <span class="sidebar-title">Widgets</span>
+                    </div>
+                    <div class="widget-library scrollbar-hidden">
+                        <div class="widget-category">
+                            <div class="widget-category-title">Basic</div>
+                            <div class="widget-item" data-widget="text" draggable="true">
+                                <span class="widget-item-icon">Aa</span>
+                                <span class="widget-item-name">Text Input</span>
+                            </div>
+                            <div class="widget-item" data-widget="number" draggable="true">
+                                <span class="widget-item-icon">#</span>
+                                <span class="widget-item-name">Number</span>
+                            </div>
+                            <div class="widget-item" data-widget="select" draggable="true">
+                                <span class="widget-item-icon">▼</span>
+                                <span class="widget-item-name">Dropdown</span>
+                            </div>
+                            <div class="widget-item" data-widget="checkbox" draggable="true">
+                                <span class="widget-item-icon">☑</span>
+                                <span class="widget-item-name">Checkbox</span>
+                            </div>
+                        </div>
+                        <div class="widget-category">
+                            <div class="widget-category-title">Nautobot Smart</div>
+                            <div class="widget-item" data-widget="device-selector" draggable="true">
+                                <span class="widget-item-icon">🖥</span>
+                                <span class="widget-item-name">Device Selector</span>
+                            </div>
+                            <div class="widget-item" data-widget="site-selector" draggable="true">
+                                <span class="widget-item-icon">📍</span>
+                                <span class="widget-item-name">Site Selector</span>
+                            </div>
+                            <div class="widget-item" data-widget="vlan-selector" draggable="true">
+                                <span class="widget-item-icon">🔌</span>
+                                <span class="widget-item-name">VLAN Selector</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Stage -->
+            <div class="main-stage">
+                <!-- Library Mode Stage -->
+                <div class="stage-content active" data-stage="library">
+                    <div class="dashboard-view scrollbar-hidden" id="dashboard-view">
+                        <div class="dashboard-header">
+                            <h1 class="dashboard-title">Automation Studio</h1>
+                            <p class="dashboard-subtitle">Build, organize, and deploy network automation workflows</p>
+                        </div>
+                        
+                        <div class="dashboard-stats">
+                            <div class="stat-card" data-type="tasks">
+                                <div class="stat-icon">⚡</div>
+                                <div class="stat-info">
+                                    <h3 id="stat-tasks-count">0</h3>
+                                    <p>Task Intents</p>
+                                </div>
+                            </div>
+                            <div class="stat-card" data-type="workflows">
+                                <div class="stat-icon">☍</div>
+                                <div class="stat-info">
+                                    <h3 id="stat-workflows-count">0</h3>
+                                    <p>Workflows</p>
+                                </div>
+                            </div>
+                            <div class="stat-card" data-type="forms">
+                                <div class="stat-icon">📋</div>
+                                <div class="stat-info">
+                                    <h3 id="stat-forms-count">0</h3>
+                                    <p>Request Forms</p>
+                                </div>
+                            </div>
+                            <div class="stat-card" data-type="executions">
+                                <div class="stat-icon">▶</div>
+                                <div class="stat-info">
+                                    <h3 id="stat-executions-count">0</h3>
+                                    <p>Executions (24h)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h2 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 16px;">Quick Actions</h2>
+                        <div class="quick-actions">
+                            <button class="quick-action-btn" onclick="StudioShell.createNewTask()">
+                                <span class="icon">⚡</span>
+                                New Task
+                            </button>
+                            <button class="quick-action-btn" onclick="StudioShell.createNewWorkflow()">
+                                <span class="icon">☍</span>
+                                New Workflow
+                            </button>
+                            <button class="quick-action-btn" onclick="StudioShell.createNewForm()">
+                                <span class="icon">📋</span>
+                                New Form
+                            </button>
+                            <button class="quick-action-btn" onclick="StudioShell.createNewFolder()">
+                                <span class="icon">📁</span>
+                                New Folder
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Code Mode Stage (Task Studio iframe) -->
+                <div class="stage-content" data-stage="code">
+                    <iframe id="task-studio-frame" src="about:blank" data-src="/plugins/network-provisioning/studio/v2/tasks/"></iframe>
+                </div>
+
+                <!-- Flow Mode Stage (Workflow Orchestrator iframe) -->
+                <div class="stage-content" data-stage="flow">
+                    <iframe id="workflow-studio-frame" src="about:blank" data-src="/plugins/network-provisioning/studio/workflows/"></iframe>
+                </div>
+
+                <!-- Form Mode Stage (Form Designer iframe) -->
+                <div class="stage-content" data-stage="form">
+                    <iframe id="form-studio-frame" src="about:blank" data-src="/plugins/network-provisioning/studio/forms/"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Panel (Flight Recorder) -->
+        <div class="bottom-panel" id="bottom-panel">
+            <div class="bottom-panel-header">
+                <div class="bottom-panel-tabs">
+                    <button class="bottom-panel-tab active" data-panel-tab="output">Output</button>
+                    <button class="bottom-panel-tab" data-panel-tab="errors">Errors</button>
+                    <button class="bottom-panel-tab" data-panel-tab="timeline">Timeline</button>
+                </div>
+                <button class="bottom-panel-toggle" onclick="StudioShell.toggleBottomPanel()">
+                    <span>▼</span> Collapse
+                </button>
+            </div>
+            <div class="bottom-panel-content scrollbar-hidden" id="output-log">
+                <div class="log-entry">
+                    <span class="log-entry-time">--:--:--</span>
+                    <span class="log-entry-level info">INFO</span>
+                    <span class="log-entry-message">Automation Studio initialized. Ready for action.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * StudioShell - Main controller for the Automation Studio
+         */
+        const StudioShell = {
+            currentMode: 'library',
+            bottomPanelExpanded: false,
+            // URLs must use 'v2' route for Task Studio
+            taskStudioUrl: "/plugins/network-provisioning/studio/v2/tasks/",
+            workflowStudioUrl: "/plugins/network-provisioning/studio/workflows/",
+            formStudioUrl: "/plugins/network-provisioning/studio/forms/",
+            // API root must match Nautobot plugin API convention
+            apiRoot: '/api/plugins/nautobot-network-provisioning/',
+            csrfToken: "{{ csrf_token }}",
+
+            init: function() {
+                this.setupModeNavigation();
+                this.setupKeyboardShortcuts();
+                this.setupBottomPanel();
+                this.loadCatalogData();
+                this.loadStats();
+                this.debugIframeUrls();
+                this.log('INFO', 'Studio Shell initialized');
+            },
+
+            debugIframeUrls: function() {
+                // Debug: Log what URLs the iframes will load
+                console.log('=== Studio Shell Iframe URLs ===');
+                console.log('Task Studio:', document.getElementById('task-studio-frame').dataset.src);
+                console.log('Workflow Studio:', document.getElementById('workflow-studio-frame').dataset.src);
+                console.log('Form Studio:', document.getElementById('form-studio-frame').dataset.src);
+                console.log('================================');
+            },
+
+            setupModeNavigation: function() {
+                document.querySelectorAll('.activity-item[data-mode]').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const mode = item.dataset.mode;
+                        this.switchMode(mode);
+                    });
+                });
+
+                document.querySelectorAll('.activity-item[data-action]').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const action = item.dataset.action;
+                        if (action === 'toggle-panel') {
+                            this.toggleBottomPanel();
+                        } else if (action === 'settings') {
+                            this.openSettings();
+                        } else if (action === 'exit') {
+                            window.location.href = '/';
+                        }
+                    });
+                });
+            },
+
+            switchMode: function(mode) {
+                // Update activity bar
+                document.querySelectorAll('.activity-item[data-mode]').forEach(item => {
+                    item.classList.toggle('active', item.dataset.mode === mode);
+                });
+
+                // Update sidebar - hide entirely for 'code' mode since Task Studio has its own
+                const contextSidebar = document.getElementById('context-sidebar');
+                if (mode === 'code') {
+                    contextSidebar.classList.add('collapsed');
+                } else {
+                    contextSidebar.classList.remove('collapsed');
+                    document.querySelectorAll('.sidebar-content').forEach(content => {
+                        content.style.display = content.dataset.sidebar === mode ? 'flex' : 'none';
+                    });
+                }
+
+                // Update stage
+                document.querySelectorAll('.stage-content').forEach(stage => {
+                    stage.classList.toggle('active', stage.dataset.stage === mode);
+                });
+
+                // Lazy load iframes when switching to a mode for the first time
+                this.loadIframeForMode(mode);
+
+                this.currentMode = mode;
+                this.log('INFO', `Switched to ${mode} mode`);
+            },
+
+            loadIframeForMode: function(mode) {
+                // Map modes to iframe IDs
+                const iframeMap = {
+                    'code': 'task-studio-frame',
+                    'flow': 'workflow-studio-frame',
+                    'form': 'form-studio-frame'
+                };
+
+                const iframeId = iframeMap[mode];
+                if (!iframeId) return;
+
+                const iframe = document.getElementById(iframeId);
+                if (!iframe) {
+                    this.log('ERROR', `Iframe not found: ${iframeId}`);
+                    return;
+                }
+
+                // Only load if not already loaded (src is still about:blank)
+                // Note: iframe.src returns full URL like "http://localhost:8080/about:blank"
+                const currentSrc = iframe.src || '';
+                console.log(`[loadIframeForMode] Current iframe src:`, currentSrc);
+                
+                if (currentSrc.includes('about:blank') || currentSrc === '' || currentSrc === window.location.origin + '/') {
+                    const targetSrc = iframe.dataset.src;
+                    if (targetSrc) {
+                        console.log(`[StudioShell] Loading ${mode} iframe from:`, targetSrc);
+                        this.log('INFO', `Loading ${mode} iframe: ${targetSrc}`);
+                        
+                        // Add error handler
+                        iframe.onerror = () => {
+                            this.log('ERROR', `Failed to load ${mode} iframe`);
+                            console.error(`Failed to load iframe: ${targetSrc}`);
+                        };
+                        
+                        // Add load handler
+                        iframe.onload = () => {
+                            console.log(`[StudioShell] ${mode} iframe loaded successfully`);
+                        };
+                        
+                        iframe.src = targetSrc;
+                    } else {
+                        this.log('ERROR', `No data-src attribute for ${mode} iframe`);
+                        console.error(`Missing data-src for iframe: ${iframeId}`);
+                    }
+                } else {
+                    console.log(`[loadIframeForMode] Iframe already loaded, skipping:`, currentSrc);
+                }
+            },
+
+            setupKeyboardShortcuts: function() {
+                document.addEventListener('keydown', (e) => {
+                    // Cmd/Ctrl + 1-4 for mode switching
+                    if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                        switch(e.key) {
+                            case '1': this.switchMode('library'); e.preventDefault(); break;
+                            case '2': this.switchMode('code'); e.preventDefault(); break;
+                            case '3': this.switchMode('flow'); e.preventDefault(); break;
+                            case '4': this.switchMode('form'); e.preventDefault(); break;
+                            case 'j': this.toggleBottomPanel(); e.preventDefault(); break;
+                        }
+                    }
+                });
+            },
+
+            setupBottomPanel: function() {
+                document.querySelectorAll('.bottom-panel-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.bottom-panel-tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        // TODO: Switch panel content based on tab
+                    });
+                });
+            },
+
+            toggleBottomPanel: function() {
+                const panel = document.getElementById('bottom-panel');
+                this.bottomPanelExpanded = !this.bottomPanelExpanded;
+                panel.classList.toggle('expanded', this.bottomPanelExpanded);
+                
+                const toggle = panel.querySelector('.bottom-panel-toggle');
+                toggle.innerHTML = this.bottomPanelExpanded 
+                    ? '<span>▼</span> Collapse' 
+                    : '<span>▲</span> Expand';
+            },
+
+            log: function(level, message) {
+                const logContainer = document.getElementById('output-log');
+                const now = new Date();
+                const time = now.toTimeString().split(' ')[0];
+                
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = `
+                    <span class="log-entry-time">${time}</span>
+                    <span class="log-entry-level ${level.toLowerCase()}">${level}</span>
+                    <span class="log-entry-message">${message}</span>
+                `;
+                
+                logContainer.appendChild(entry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            },
+
+            // Catalog Explorer
+            loadCatalogData: async function() {
+                try {
+                    // Load folders
+                    const foldersRes = await fetch(`${this.apiRoot}folders/`, {
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const foldersData = await foldersRes.json();
+                    
+                    // Load tasks
+                    const tasksRes = await fetch(`${this.apiRoot}task-intents/`, {
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const tasksData = await tasksRes.json();
+                    
+                    // Load workflows
+                    const workflowsRes = await fetch(`${this.apiRoot}workflows/`, {
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const workflowsData = await workflowsRes.json();
+                    
+                    this.renderCatalogTree(foldersData.results || [], tasksData.results || [], workflowsData.results || []);
+                } catch (err) {
+                    console.error('Failed to load catalog data:', err);
+                    this.log('ERROR', 'Failed to load catalog data');
+                }
+            },
+
+            renderCatalogTree: function(folders, tasks, workflows) {
+                const tree = document.getElementById('catalog-tree');
+                tree.innerHTML = '';
+                
+                // Render folders
+                (folders || []).forEach(folder => {
+                    tree.appendChild(this.createTreeItem('folder', folder.name, folder.id, '📁'));
+                });
+                
+                // Render root-level tasks
+                (tasks || []).filter(t => !t.folder).forEach(task => {
+                    tree.appendChild(this.createTreeItem('task', task.name, task.id, '⚡'));
+                });
+                
+                // Render root-level workflows
+                (workflows || []).filter(w => !w.folder).forEach(workflow => {
+                    tree.appendChild(this.createTreeItem('workflow', workflow.name, workflow.id, '☍'));
+                });
+                
+                if (tree.children.length === 0) {
+                    tree.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 12px;">No items yet. Create your first task!</div>';
+                }
+            },
+
+            createTreeItem: function(type, name, id, icon) {
+                const item = document.createElement('div');
+                item.className = 'tree-item';
+                item.dataset.type = type;
+                item.dataset.id = id;
+                item.innerHTML = `
+                    <span class="tree-item-icon">${icon}</span>
+                    <span class="tree-item-name">${name}</span>
+                `;
+                item.addEventListener('click', () => this.selectItem(type, id, name));
+                return item;
+            },
+
+            selectItem: function(type, id, name) {
+                document.querySelectorAll('.tree-item').forEach(item => item.classList.remove('active'));
+                event.currentTarget.classList.add('active');
+                
+                if (type === 'task') {
+                    this.openTask(id);
+                } else if (type === 'workflow') {
+                    this.openWorkflow(id);
+                }
+            },
+
+            openTask: function(taskId) {
+                const frame = document.getElementById('task-studio-frame');
+                // Task Studio v2 edit URL includes the task ID
+                frame.src = `/plugins/network-provisioning/studio/v2/tasks/${taskId}/`;
+                this.switchMode('code');
+            },
+
+            openWorkflow: function(workflowId) {
+                this.switchMode('flow');
+                this.log('INFO', `Opening workflow: ${workflowId}`);
+                // TODO: Load workflow into canvas
+            },
+
+            // Stats
+            loadStats: async function() {
+                try {
+                    const [tasks, workflows, forms] = await Promise.all([
+                        fetch(`${this.apiRoot}task-intents/`).then(r => r.json()),
+                        fetch(`${this.apiRoot}workflows/`).then(r => r.json()),
+                        fetch(`${this.apiRoot}request-forms/`).then(r => r.json())
+                    ]);
+                    
+                    document.getElementById('stat-tasks-count').textContent = tasks.count || (tasks.results?.length || 0);
+                    document.getElementById('stat-workflows-count').textContent = workflows.count || (workflows.results?.length || 0);
+                    document.getElementById('stat-forms-count').textContent = forms.count || (forms.results?.length || 0);
+                } catch (err) {
+                    console.error('Failed to load stats:', err);
+                }
+            },
+
+            // Quick Actions
+            createNewTask: function() {
+                this.switchMode('code');
+                const frame = document.getElementById('task-studio-frame');
+                // Force set the data-src attribute and then load it
+                frame.dataset.src = this.taskStudioUrl;
+                console.log('[createNewTask] Setting iframe src to:', this.taskStudioUrl);
+                frame.src = this.taskStudioUrl;
+                this.log('INFO', 'Creating new task');
+            },
+
+            createNewWorkflow: function() {
+                this.switchMode('flow');
+                this.log('INFO', 'Creating new workflow');
+                // TODO: Initialize empty workflow canvas
+            },
+
+            createNewForm: function() {
+                this.switchMode('form');
+                this.log('INFO', 'Creating new form');
+                // TODO: Initialize empty form canvas
+            },
+
+            createNewFolder: async function() {
+                const name = prompt('Enter folder name:');
+                if (!name) return;
+                
+                try {
+                    const res = await fetch(`${this.apiRoot}folders/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        },
+                        body: JSON.stringify({
+                            name: name,
+                            slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+                        })
+                    });
+                    
+                    if (res.ok) {
+                        this.log('SUCCESS', `Created folder: ${name}`);
+                        this.loadCatalogData();
+                    } else {
+                        const error = await res.json();
+                        this.log('ERROR', `Failed to create folder: ${JSON.stringify(error)}`);
+                    }
+                } catch (err) {
+                    this.log('ERROR', `Failed to create folder: ${err.message}`);
+                }
+            },
+
+            openSettings: function() {
+                alert('Settings coming soon!');
+            }
+        };
+
+        // Initialize on DOM ready
+        document.addEventListener('DOMContentLoaded', () => StudioShell.init());
+    </script>
+</body>
+</html>

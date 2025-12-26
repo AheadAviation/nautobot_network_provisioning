@@ -1,0 +1,13 @@
+<div class="btn-group">
+    <button type="button" class="btn btn-sm btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <i class="mdi mdi-swap-horizontal"></i> Port Actions <span class="caret"></span>
+    </button>
+    <ul class="dropdown-menu">
+        {% for item in applicable_forms %}
+            <li><a href="{% url 'plugins:nautobot_network_provisioning:portal_request_form' slug=item.form.slug %}?{{ item.field_name }}={{ interface.pk }}">{{ item.form.name }}</a></li>
+        {% empty %}
+            <li class="disabled"><a>No applicable forms</a></li>
+        {% endfor %}
+    </ul>
+</div>
+

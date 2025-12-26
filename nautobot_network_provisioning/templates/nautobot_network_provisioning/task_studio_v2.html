@@ -1,0 +1,2031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Studio v2</title>
+    {% load static %}
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Catppuccin Mocha-inspired palette */
+            --bg-base: #1e1e2e;
+            --bg-surface: #24243a;
+            --bg-overlay: #2a2a40;
+            --bg-muted: #313244;
+            --bg-subtle: #3a3a54;
+            
+            --border-default: #45475a;
+            --border-active: #89b4fa;
+            --border-success: #a6e3a1;
+            --border-warning: #f9e2af;
+            --border-error: #f38ba8;
+            
+            --text-base: #cdd6f4;
+            --text-muted: #a6adc8;
+            --text-subtle: #6c7086;
+            
+            --accent-blue: #89b4fa;
+            --accent-green: #a6e3a1;
+            --accent-peach: #fab387;
+            --accent-mauve: #cba6f7;
+            --accent-red: #f38ba8;
+            --accent-yellow: #f9e2af;
+            --accent-teal: #94e2d5;
+            --accent-sky: #89dceb;
+            
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: var(--font-sans);
+            background: var(--bg-base);
+            color: var(--text-base);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           MAIN LAYOUT - Three Zone Architecture
+           ═══════════════════════════════════════════════════════════ */
+        
+        #task-studio {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .studio-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-default);
+            height: 56px;
+            flex-shrink: 0;
+        }
+
+        .studio-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 18px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+
+        .back-link:hover {
+            color: var(--text-base);
+            background: var(--bg-muted);
+        }
+
+        .task-name-input {
+            background: var(--bg-overlay);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: 8px 14px;
+            color: var(--text-base);
+            font-size: 15px;
+            font-weight: 600;
+            width: 350px;
+            transition: all 0.15s;
+        }
+
+        .task-name-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.15);
+        }
+
+        .studio-header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border-default);
+            background: var(--bg-overlay);
+            color: var(--text-base);
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: var(--bg-muted);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: var(--bg-base);
+        }
+
+        .btn-primary:hover {
+            background: #7aa2e0;
+        }
+
+        .btn-success {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+            color: var(--bg-base);
+        }
+
+        .studio-content {
+            display: grid;
+            grid-template-columns: 320px 1fr 380px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           ZONE A: INPUTS (Left Sidebar)
+           ═══════════════════════════════════════════════════════════ */
+        
+        .zone-inputs {
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border-default);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .zone-header {
+            padding: 12px 16px;
+            background: var(--bg-overlay);
+            border-bottom: 1px solid var(--border-default);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .zone-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .input-card {
+            background: var(--bg-overlay);
+            border: 1px solid var(--border-default);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .input-card:hover {
+            border-color: var(--accent-blue);
+            background: var(--bg-muted);
+        }
+
+        .input-card.active {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.15);
+        }
+
+        .input-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+        }
+
+        .input-name {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-sky);
+        }
+
+        .input-required {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--accent-red);
+            background: rgba(243, 139, 168, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .input-type {
+            font-size: 11px;
+            color: var(--accent-mauve);
+            margin-bottom: 4px;
+        }
+
+        .input-source {
+            font-size: 10px;
+            color: var(--text-subtle);
+        }
+
+        .add-input-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 2px dashed var(--border-default);
+            border-radius: 10px;
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .add-input-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+            background: rgba(137, 180, 250, 0.05);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           ZONE B: STRATEGY EDITOR (Center)
+           ═══════════════════════════════════════════════════════════ */
+        
+        .zone-editor {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-base);
+        }
+
+        .strategy-tabs {
+            display: flex;
+            padding: 12px 16px 0;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-default);
+            gap: 4px;
+            overflow-x: auto;
+        }
+
+        .strategy-tab {
+            padding: 10px 16px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .strategy-tab:hover {
+            color: var(--text-base);
+        }
+
+        .strategy-tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .strategy-tab-platform {
+            font-weight: 600;
+        }
+
+        .strategy-tab-method {
+            font-size: 10px;
+            color: var(--text-subtle);
+            background: var(--bg-muted);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .strategy-tab-add {
+            color: var(--text-subtle);
+            font-size: 16px;
+        }
+
+        .strategy-tab-add:hover {
+            color: var(--accent-green);
+        }
+
+        .editor-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: var(--bg-overlay);
+            border-bottom: 1px solid var(--border-default);
+        }
+
+        .editor-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .editor-method-select {
+            background: var(--bg-muted);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: var(--text-base);
+            font-size: 12px;
+        }
+
+        .editor-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #monaco-editor {
+            width: 100%;
+            height: 100%;
+        }
+
+        .editor-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .editor-empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .editor-empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-base);
+        }
+
+        .editor-empty-text {
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           ZONE C: PREVIEW (Right Sidebar)
+           ═══════════════════════════════════════════════════════════ */
+        
+        .zone-preview {
+            background: var(--bg-surface);
+            border-left: 1px solid var(--border-default);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .preview-device-bar {
+            position: relative;
+            padding: 12px 16px;
+            background: var(--bg-overlay);
+            border-bottom: 1px solid var(--border-default);
+        }
+
+        .preview-device-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-subtle);
+            margin-bottom: 6px;
+        }
+
+        .preview-device-search {
+            width: 100%;
+            background: var(--bg-muted);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-base);
+            font-size: 12px;
+        }
+
+        .preview-device-search:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        #device-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 16px;
+            right: 16px;
+            background: var(--bg-overlay);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            margin-top: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .device-dropdown-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-default);
+            transition: background 0.15s;
+        }
+
+        .device-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .device-dropdown-item:hover {
+            background: var(--bg-muted);
+        }
+
+        .device-dropdown-name {
+            font-size: 12px;
+            color: var(--text-base);
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .device-dropdown-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .preview-tabs {
+            display: flex;
+            background: var(--bg-overlay);
+            border-bottom: 1px solid var(--border-default);
+        }
+
+        .preview-tab {
+            flex: 1;
+            padding: 10px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .preview-tab:hover {
+            color: var(--text-base);
+        }
+
+        .preview-tab.active {
+            color: var(--accent-peach);
+            border-bottom-color: var(--accent-peach);
+        }
+
+        .preview-content {
+            flex: 1;
+            overflow: hidden;
+            display: none;
+        }
+
+        .preview-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-rendered {
+            flex: 1;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.6;
+            overflow-y: auto;
+            background: var(--bg-base);
+            white-space: pre-wrap;
+            color: var(--accent-green);
+        }
+
+        .preview-context {
+            flex: 1;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            line-height: 1.5;
+            overflow-y: auto;
+            background: var(--bg-base);
+        }
+
+        .context-section {
+            margin-bottom: 16px;
+        }
+
+        .context-section-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--accent-teal);
+            margin-bottom: 8px;
+        }
+
+        .context-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border-default);
+        }
+
+        .context-key {
+            color: var(--accent-sky);
+        }
+
+        .context-value {
+            color: var(--text-muted);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           INPUT EDITOR MODAL
+           ═══════════════════════════════════════════════════════════ */
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 16px;
+            width: 480px;
+            max-width: 90vw;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-default);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-base);
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .modal-close:hover {
+            background: var(--bg-muted);
+            color: var(--text-base);
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-default);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-base);
+            margin-bottom: 8px;
+        }
+
+        .form-help {
+            font-size: 11px;
+            color: var(--text-subtle);
+            margin-top: 6px;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-overlay);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            color: var(--text-base);
+            font-size: 13px;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.15);
+        }
+
+        .form-checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-blue);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           STATUS BAR
+           ═══════════════════════════════════════════════════════════ */
+        
+        .status-bar {
+            padding: 8px 20px;
+            background: var(--accent-blue);
+            color: var(--bg-base);
+            font-size: 11px;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-bar.error {
+            background: var(--accent-red);
+        }
+
+        .status-bar.success {
+            background: var(--accent-green);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           SCROLLBAR STYLING
+           ═══════════════════════════════════════════════════════════ */
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-base);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-default);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-subtle);
+        }
+    </style>
+</head>
+<body>
+    <div id="task-studio">
+        <!-- Header -->
+        <div class="studio-header">
+            <div class="studio-header-left">
+                <a href="#" class="back-link" id="back-btn" title="Back to Task List">←</a>
+                <input type="text" 
+                       id="task-name" 
+                       class="task-name-input" 
+                       placeholder="Task Name (e.g., Configure NTP Servers)"
+                       autocomplete="off">
+            </div>
+            <div class="studio-header-right">
+                <button class="btn" id="btn-validate">✓ Validate</button>
+                <button class="btn" id="btn-export-yaml">⬇ Export YAML</button>
+                <button class="btn btn-primary" id="btn-save">💾 Save Task</button>
+            </div>
+        </div>
+
+        <!-- Main Content - Three Zones -->
+        <div class="studio-content">
+            <!-- ZONE A: Inputs -->
+            <div class="zone-inputs">
+                <div class="zone-header">
+                    <span>📝 Inputs</span>
+                    <span id="input-count">0 variables</span>
+                </div>
+                <div class="zone-body" id="inputs-container">
+                    <!-- Input cards rendered here -->
+                    <button class="add-input-btn" id="add-input-btn">
+                        + Add Input Variable
+                    </button>
+                </div>
+            </div>
+
+            <!-- ZONE B: Strategy Editor -->
+            <div class="zone-editor">
+                <div class="strategy-tabs" id="strategy-tabs">
+                    <!-- Strategy tabs rendered here -->
+                    <button class="strategy-tab strategy-tab-add" id="add-strategy-btn" title="Add Strategy">+</button>
+                </div>
+                <div class="editor-toolbar" id="editor-toolbar">
+                    <div class="editor-toolbar-left">
+                        <label style="font-size: 11px; color: var(--text-muted);">Method:</label>
+                        <select class="editor-method-select" id="strategy-method">
+                            <option value="cli_config">CLI Configuration</option>
+                            <option value="cli_show">CLI Show Commands</option>
+                            <option value="rest_api">REST API Call</option>
+                            <option value="netconf">NETCONF RPC</option>
+                            <option value="gnmi">gNMI Set/Get</option>
+                            <option value="python">Python Script</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button class="btn" id="btn-insert-var" style="padding: 4px 10px; font-size: 11px;">
+                            {% templatetag openvariable %}{% templatetag closevariable %} Insert Variable
+                        </button>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <div id="monaco-editor"></div>
+                    <div class="editor-empty-state" id="editor-empty">
+                        <div class="editor-empty-icon">📝</div>
+                        <div class="editor-empty-title">No Strategy Selected</div>
+                        <div class="editor-empty-text">
+                            Click "+ Add Strategy" above to create a platform-specific implementation
+                        </div>
+                        <button class="btn btn-primary" id="create-first-strategy">Create First Strategy</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ZONE C: Preview -->
+            <div class="zone-preview">
+                <div class="preview-device-bar">
+                    <div class="preview-device-label">Test Device</div>
+                    <input type="text" 
+                           class="preview-device-search" 
+                           id="device-search"
+                           placeholder="Search for a device..."
+                           autocomplete="off">
+                    <div id="device-dropdown" style="display: none;"></div>
+                </div>
+                <div class="preview-tabs">
+                    <button class="preview-tab active" data-tab="rendered">Rendered</button>
+                    <button class="preview-tab" data-tab="context">Context</button>
+                    <button class="preview-tab" data-tab="errors">Errors</button>
+                </div>
+                <div class="preview-content active" id="preview-rendered">
+                    <pre class="preview-rendered" id="rendered-output">
+Select a device and strategy to see rendered output...</pre>
+                </div>
+                <div class="preview-content" id="preview-context">
+                    <div class="preview-context" id="context-tree">
+                        <!-- Context data rendered here -->
+                    </div>
+                </div>
+                <div class="preview-content" id="preview-errors">
+                    <div class="preview-context" id="error-list">
+                        No errors
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar" id="status-bar">
+            <span id="status-text">Ready</span>
+            <span id="status-info"></span>
+        </div>
+    </div>
+
+    <!-- Add Input Modal -->
+    <div class="modal-overlay" id="input-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="input-modal-title">Add Input Variable</span>
+                <button class="modal-close" id="input-modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Variable Name</label>
+                    <input type="text" class="form-input" id="input-name" placeholder="e.g., ntp_servers">
+                    <div class="form-help">Use snake_case. This is how you'll reference it in templates: {{ ntp_servers }}</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Label</label>
+                    <input type="text" class="form-input" id="input-label" placeholder="e.g., NTP Server Addresses">
+                    <div class="form-help">Human-readable label shown in request forms</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" id="input-type">
+                        <option value="string">Text</option>
+                        <option value="integer">Number</option>
+                        <option value="boolean">Toggle (Yes/No)</option>
+                        <option value="ip">IP Address</option>
+                        <option value="cidr">Network CIDR</option>
+                        <option value="list[string]">Text List</option>
+                        <option value="list[ip]">IP Address List</option>
+                        <option value="device">Device Selector</option>
+                        <option value="interface">Interface Selector</option>
+                        <option value="vlan_id">VLAN ID</option>
+                        <option value="location">Location Selector</option>
+                        <option value="select">Dropdown (Choices)</option>
+                        <option value="json">Raw JSON</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Value Source</label>
+                    <select class="form-select" id="input-source">
+                        <option value="input">User Input (form field)</option>
+                        <option value="config_context">Config Context (from device/site)</option>
+                        <option value="device_attribute">Device Attribute (name, platform, etc.)</option>
+                        <option value="local_context">Local Context (device-specific)</option>
+                    </select>
+                    <div class="form-help">Where should this value come from?</div>
+                </div>
+                <div class="form-group" id="source-path-group" style="display: none;">
+                    <label class="form-label">Source Path</label>
+                    <input type="text" class="form-input" id="input-source-path" placeholder="e.g., ntp.servers or device.name">
+                    <div class="form-help">Path to the value in config context or device attributes</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Default Value</label>
+                    <input type="text" class="form-input" id="input-default" placeholder="Optional default value">
+                </div>
+                <div class="form-group">
+                    <div class="form-checkbox-row">
+                        <input type="checkbox" class="form-checkbox" id="input-required" checked>
+                        <label for="input-required">Required</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Help Text</label>
+                    <textarea class="form-textarea" id="input-help" rows="2" placeholder="Description shown to users"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="input-modal-cancel">Cancel</button>
+                <button class="btn btn-primary" id="input-modal-save">Save Input</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Strategy Modal -->
+    <div class="modal-overlay" id="strategy-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Add Implementation Strategy</span>
+                <button class="modal-close" id="strategy-modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Platform</label>
+                    <select class="form-select" id="strategy-platform">
+                        <option value="">-- Select Platform --</option>
+                    </select>
+                    <div class="form-help">Network platform this implementation targets</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Method</label>
+                    <select class="form-select" id="new-strategy-method">
+                        <option value="cli_config">CLI Configuration (Netmiko/NAPALM)</option>
+                        <option value="cli_show">CLI Show Commands</option>
+                        <option value="rest_api">REST API Call</option>
+                        <option value="netconf">NETCONF RPC</option>
+                        <option value="gnmi">gNMI Set/Get</option>
+                        <option value="python">Python Script</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Priority</label>
+                    <input type="number" class="form-input" id="strategy-priority" value="100" min="1" max="1000">
+                    <div class="form-help">Higher priority strategies are selected first (1-1000)</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="strategy-modal-cancel">Cancel</button>
+                <button class="btn btn-primary" id="strategy-modal-save">Create Strategy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // TASK STUDIO V2 - Low-Code First Architecture
+        // ═══════════════════════════════════════════════════════════════
+        
+        const TaskStudio = {
+            // State
+            task: null,
+            inputs: [],
+            strategies: [],
+            currentStrategyIndex: -1,
+            selectedDevice: null,
+            editor: null,
+            
+            // Config - CRITICAL: Must match Nautobot plugin API path
+            apiRoot: '/api/plugins/network-provisioning/',
+            csrfToken: "{{ csrf_token }}",
+            taskId: {% if object.pk %}"{{ object.pk }}"{% else %}null{% endif %},
+            
+            {% verbatim %}
+            
+            // ═══════════════════════════════════════════════════════════
+            // INITIALIZATION
+            // ═══════════════════════════════════════════════════════════
+            
+            async init() {
+                console.log('[TaskStudio] Initializing...');
+                
+                // Load Monaco editor
+                await this.loadMonacoEditor();
+                
+                // Load task data if editing
+                if (this.taskId) {
+                    await this.loadTask();
+                }
+                
+                // Load platforms for strategy modal
+                await this.loadPlatforms();
+                
+                // Setup event listeners
+                this.setupEventListeners();
+                
+                // Render initial state
+                this.renderInputs();
+                this.renderStrategies();
+                
+                this.setStatus('Ready');
+            },
+            
+            setupEventListeners() {
+                // Back button - detect if in iframe and communicate with parent shell
+                document.getElementById('back-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    
+                    // Check if we're inside an iframe (embedded in Studio Shell)
+                    if (window.parent !== window && window.parent.StudioShell) {
+                        // Tell parent shell to switch back to library mode
+                        window.parent.StudioShell.switchMode('library');
+                    } else {
+                        // Standalone mode - navigate to task list
+                        window.location.href = '/plugins/network-provisioning/task-intents/';
+                    }
+                });
+                
+                // Save button
+                document.getElementById('btn-save').addEventListener('click', () => this.saveTask());
+                
+                // Validate button
+                document.getElementById('btn-validate').addEventListener('click', () => this.validateTask());
+                
+                // Export YAML button
+                document.getElementById('btn-export-yaml').addEventListener('click', () => this.exportYAML());
+                
+                // Add Input button
+                document.getElementById('btn-add-input').addEventListener('click', () => this.openInputModal());
+                
+                // Input modal close
+                document.getElementById('input-modal-close').addEventListener('click', () => this.closeInputModal());
+                document.getElementById('input-modal-cancel').addEventListener('click', () => this.closeInputModal());
+                
+                // Input modal save
+                document.getElementById('input-modal-save').addEventListener('click', () => this.saveInput());
+                
+                // Add Strategy button
+                document.getElementById('btn-add-strategy').addEventListener('click', () => this.openStrategyModal());
+                document.getElementById('create-first-strategy').addEventListener('click', () => this.openStrategyModal());
+                
+                // Strategy modal close
+                document.getElementById('strategy-modal-close').addEventListener('click', () => this.closeStrategyModal());
+                document.getElementById('strategy-modal-cancel').addEventListener('click', () => this.closeStrategyModal());
+                
+                // Strategy modal save
+                document.getElementById('strategy-modal-save').addEventListener('click', () => this.saveStrategy());
+                
+                // Insert variable button
+                document.getElementById('btn-insert-var').addEventListener('click', () => this.insertVariable());
+                
+                // Preview tabs
+                document.querySelectorAll('.preview-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        const tabName = e.target.dataset.tab;
+                        document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.preview-content').forEach(c => c.classList.remove('active'));
+                        e.target.classList.add('active');
+                        document.getElementById(`preview-${tabName}`).classList.add('active');
+                    });
+                });
+                
+                // Device search
+                const deviceSearch = document.getElementById('device-search');
+                deviceSearch.addEventListener('input', () => this.searchDevices());
+                deviceSearch.addEventListener('focus', () => this.searchDevices());
+                deviceSearch.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        document.getElementById('device-dropdown').style.display = 'none';
+                    }, 200);
+                });
+            },
+            
+            async loadMonacoEditor() {
+                return new Promise((resolve) => {
+                    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+                    require(['vs/editor/editor.main'], () => {
+                        // Define Jinja2 language
+                        monaco.languages.register({ id: 'jinja2' });
+                        monaco.languages.setMonarchTokensProvider('jinja2', {
+                            tokenizer: {
+                                root: [
+                                    [/\{\{/, 'delimiter.curly', '@expression'],
+                                    [/\{%/, 'delimiter.curly', '@block'],
+                                    [/\{#/, 'comment', '@comment'],
+                                    [/./, 'text']
+                                ],
+                                expression: [
+                                    [/}}/, 'delimiter.curly', '@pop'],
+                                    [/[a-zA-Z_]\w*/, 'variable'],
+                                    [/\|/, 'operator'],
+                                    [/'[^']*'/, 'string'],
+                                    [/"[^"]*"/, 'string'],
+                                    [/\d+/, 'number'],
+                                    [/./, 'text']
+                                ],
+                                block: [
+                                    [/%}/, 'delimiter.curly', '@pop'],
+                                    [/\b(for|endfor|if|endif|elif|else|set|macro|endmacro|block|endblock|extends|include)\b/, 'keyword'],
+                                    [/\b(in|not|and|or|is)\b/, 'keyword'],
+                                    [/[a-zA-Z_]\w*/, 'variable'],
+                                    [/'[^']*'/, 'string'],
+                                    [/"[^"]*"/, 'string'],
+                                    [/\d+/, 'number'],
+                                    [/./, 'text']
+                                ],
+                                comment: [
+                                    [/#}/, 'comment', '@pop'],
+                                    [/./, 'comment']
+                                ]
+                            }
+                        });
+                        
+                        // Create editor
+                        this.editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                            value: '',
+                            language: 'jinja2',
+                            theme: 'vs-dark',
+                            minimap: { enabled: false },
+                            fontSize: 13,
+                            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                            lineNumbers: 'on',
+                            wordWrap: 'on',
+                            automaticLayout: true,
+                            tabSize: 2,
+                            scrollBeyondLastLine: false
+                        });
+                        
+                        // Auto-render on change
+                        this.editor.onDidChangeModelContent(() => {
+                            this.syncEditorToStrategy();
+                            this.renderPreview();
+                        });
+                        
+                        resolve();
+                    });
+                });
+            },
+            
+            async loadTask() {
+                try {
+                    const res = await fetch(`${this.apiRoot}task-intents/${this.taskId}/`);
+                    const data = await res.json();
+                    
+                    this.task = data;
+                    this.inputs = data.inputs || [];
+                    this.strategies = (data.strategies || []).map(s => ({
+                        ...s,
+                        _dirty: false
+                    }));
+                    
+                    document.getElementById('task-name').value = data.name || '';
+                    
+                    console.log('[TaskStudio] Loaded task:', data.name);
+                } catch (err) {
+                    console.error('[TaskStudio] Failed to load task:', err);
+                    this.setStatus('Error loading task', 'error');
+                }
+            },
+            
+            async loadPlatforms() {
+                try {
+                    // Platforms are in the Nautobot DCIM API, not the plugin API
+                    const res = await fetch('/api/dcim/platforms/');
+                    const data = await res.json();
+                    
+                    const select = document.getElementById('strategy-platform');
+                    select.innerHTML = '<option value="">-- Select Platform --</option>';
+                    
+                    (data.results || []).forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.display;
+                        select.appendChild(opt);
+                    });
+                } catch (err) {
+                    console.error('[TaskStudio] Failed to load platforms:', err);
+                }
+            },
+            
+            // ═══════════════════════════════════════════════════════════
+            // EVENT LISTENERS
+            // ═══════════════════════════════════════════════════════════
+            
+            setupEventListeners() {
+                // Back button
+                document.getElementById('back-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    // Check if embedded in iframe
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'navigate', target: 'library' }, '*');
+                    } else {
+                        window.location.href = '/plugins/network-provisioning/task-intents/';
+                    }
+                });
+                
+                // Add Input
+                document.getElementById('add-input-btn').addEventListener('click', () => this.showInputModal());
+                
+                // Add Strategy
+                document.getElementById('add-strategy-btn').addEventListener('click', () => this.showStrategyModal());
+                document.getElementById('create-first-strategy').addEventListener('click', () => this.showStrategyModal());
+                
+                // Input Modal
+                document.getElementById('input-modal-close').addEventListener('click', () => this.hideInputModal());
+                document.getElementById('input-modal-cancel').addEventListener('click', () => this.hideInputModal());
+                document.getElementById('input-modal-save').addEventListener('click', () => this.saveInput());
+                
+                // Source dropdown toggle
+                document.getElementById('input-source').addEventListener('change', (e) => {
+                    const pathGroup = document.getElementById('source-path-group');
+                    pathGroup.style.display = ['config_context', 'device_attribute', 'local_context'].includes(e.target.value) 
+                        ? 'block' : 'none';
+                });
+                
+                // Strategy Modal
+                document.getElementById('strategy-modal-close').addEventListener('click', () => this.hideStrategyModal());
+                document.getElementById('strategy-modal-cancel').addEventListener('click', () => this.hideStrategyModal());
+                document.getElementById('strategy-modal-save').addEventListener('click', () => this.saveStrategy());
+                
+                // Preview tabs
+                document.querySelectorAll('.preview-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.preview-content').forEach(c => c.classList.remove('active'));
+                        tab.classList.add('active');
+                        document.getElementById(`preview-${tab.dataset.tab}`).classList.add('active');
+                    });
+                });
+                
+                // Device search
+                let deviceSearchTimeout;
+                const deviceSearchInput = document.getElementById('device-search');
+                deviceSearchInput.addEventListener('input', (e) => {
+                    clearTimeout(deviceSearchTimeout);
+                    deviceSearchTimeout = setTimeout(() => this.searchDevices(e.target.value), 300);
+                });
+                
+                // Hide dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    const dropdown = document.getElementById('device-dropdown');
+                    if (!deviceSearchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.style.display = 'none';
+                    }
+                });
+                
+                // Save button
+                document.getElementById('btn-save').addEventListener('click', () => this.saveTask());
+                
+                // Validate button
+                document.getElementById('btn-validate').addEventListener('click', () => this.validateTask());
+                
+                // Export YAML
+                document.getElementById('btn-export-yaml').addEventListener('click', () => this.exportYAML());
+                
+                // Insert variable
+                document.getElementById('btn-insert-var').addEventListener('click', () => this.insertVariable());
+            },
+            
+            // ═══════════════════════════════════════════════════════════
+            // INPUT MANAGEMENT
+            // ═══════════════════════════════════════════════════════════
+            
+            renderInputs() {
+                const container = document.getElementById('inputs-container');
+                const addBtn = document.getElementById('add-input-btn');
+                
+                // Clear existing cards
+                container.querySelectorAll('.input-card').forEach(el => el.remove());
+                
+                // Render input cards
+                this.inputs.forEach((input, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'input-card';
+                    card.innerHTML = `
+                        <div class="input-card-header">
+                            <span class="input-name">${input.name}</span>
+                            ${input.required ? '<span class="input-required">required</span>' : ''}
+                        </div>
+                        <div class="input-type">${input.type || 'string'}</div>
+                        <div class="input-source">Source: ${input.source || 'input'}${input.source_path ? ` (${input.source_path})` : ''}</div>
+                    `;
+                    card.addEventListener('click', () => this.editInput(index));
+                    container.insertBefore(card, addBtn);
+                });
+                
+                // Update count
+                document.getElementById('input-count').textContent = `${this.inputs.length} variable${this.inputs.length !== 1 ? 's' : ''}`;
+            },
+            
+            showInputModal(editIndex = null) {
+                this.editingInputIndex = editIndex;
+                
+                const modal = document.getElementById('input-modal');
+                const title = document.getElementById('input-modal-title');
+                
+                if (editIndex !== null) {
+                    title.textContent = 'Edit Input Variable';
+                    const input = this.inputs[editIndex];
+                    document.getElementById('input-name').value = input.name || '';
+                    document.getElementById('input-label').value = input.label || '';
+                    document.getElementById('input-type').value = input.type || 'string';
+                    document.getElementById('input-source').value = input.source || 'input';
+                    document.getElementById('input-source-path').value = input.source_path || '';
+                    document.getElementById('input-default').value = input.default || '';
+                    document.getElementById('input-required').checked = input.required !== false;
+                    document.getElementById('input-help').value = input.help || '';
+                    
+                    // Show/hide source path
+                    document.getElementById('source-path-group').style.display = 
+                        ['config_context', 'device_attribute', 'local_context'].includes(input.source) ? 'block' : 'none';
+                } else {
+                    title.textContent = 'Add Input Variable';
+                    document.getElementById('input-name').value = '';
+                    document.getElementById('input-label').value = '';
+                    document.getElementById('input-type').value = 'string';
+                    document.getElementById('input-source').value = 'input';
+                    document.getElementById('input-source-path').value = '';
+                    document.getElementById('input-default').value = '';
+                    document.getElementById('input-required').checked = true;
+                    document.getElementById('input-help').value = '';
+                    document.getElementById('source-path-group').style.display = 'none';
+                }
+                
+                modal.classList.add('active');
+            },
+            
+            hideInputModal() {
+                document.getElementById('input-modal').classList.remove('active');
+                this.editingInputIndex = null;
+            },
+            
+            saveInput() {
+                const input = {
+                    name: document.getElementById('input-name').value.trim(),
+                    label: document.getElementById('input-label').value.trim(),
+                    type: document.getElementById('input-type').value,
+                    source: document.getElementById('input-source').value,
+                    source_path: document.getElementById('input-source-path').value.trim() || null,
+                    default: document.getElementById('input-default').value.trim() || null,
+                    required: document.getElementById('input-required').checked,
+                    help: document.getElementById('input-help').value.trim()
+                };
+                
+                if (!input.name) {
+                    alert('Variable name is required');
+                    return;
+                }
+                
+                if (this.editingInputIndex !== null) {
+                    this.inputs[this.editingInputIndex] = input;
+                } else {
+                    this.inputs.push(input);
+                }
+                
+                this.hideInputModal();
+                this.renderInputs();
+                this.setStatus('Input saved');
+            },
+            
+            editInput(index) {
+                this.showInputModal(index);
+            },
+            
+            // ═══════════════════════════════════════════════════════════
+            // STRATEGY MANAGEMENT
+            // ═══════════════════════════════════════════════════════════
+            
+            renderStrategies() {
+                const tabsContainer = document.getElementById('strategy-tabs');
+                const addBtn = document.getElementById('add-strategy-btn');
+                
+                // Clear existing tabs
+                tabsContainer.querySelectorAll('.strategy-tab:not(.strategy-tab-add)').forEach(el => el.remove());
+                
+                // Show/hide empty state
+                const emptyState = document.getElementById('editor-empty');
+                const toolbar = document.getElementById('editor-toolbar');
+                
+                if (this.strategies.length === 0) {
+                    emptyState.style.display = 'flex';
+                    toolbar.style.display = 'none';
+                    document.getElementById('monaco-editor').style.display = 'none';
+                } else {
+                    emptyState.style.display = 'none';
+                    toolbar.style.display = 'flex';
+                    document.getElementById('monaco-editor').style.display = 'block';
+                    
+                    // Render strategy tabs
+                    this.strategies.forEach((strategy, index) => {
+                        const tab = document.createElement('button');
+                        tab.className = `strategy-tab ${index === this.currentStrategyIndex ? 'active' : ''}`;
+                        tab.innerHTML = `
+                            <span class="strategy-tab-platform">${strategy.platform_name || 'Unknown'}</span>
+                            <span class="strategy-tab-method">${strategy.method || 'cli_config'}</span>
+                        `;
+                        tab.addEventListener('click', () => this.selectStrategy(index));
+                        tabsContainer.insertBefore(tab, addBtn);
+                    });
+                    
+                    // Select first strategy if none selected
+                    if (this.currentStrategyIndex < 0 && this.strategies.length > 0) {
+                        this.selectStrategy(0);
+                    }
+                }
+            },
+            
+            selectStrategy(index) {
+                // Save current strategy content first
+                if (this.currentStrategyIndex >= 0 && this.strategies[this.currentStrategyIndex]) {
+                    this.syncEditorToStrategy();
+                }
+                
+                this.currentStrategyIndex = index;
+                const strategy = this.strategies[index];
+                
+                // Update tabs
+                document.querySelectorAll('.strategy-tab').forEach((tab, i) => {
+                    tab.classList.toggle('active', i === index);
+                });
+                
+                // Load template into editor
+                if (this.editor && strategy) {
+                    this.editor.setValue(strategy.template_content || '');
+                    document.getElementById('strategy-method').value = strategy.method || 'cli_config';
+                }
+                
+                // Render preview
+                this.renderPreview();
+            },
+            
+            syncEditorToStrategy() {
+                if (this.currentStrategyIndex >= 0 && this.strategies[this.currentStrategyIndex] && this.editor) {
+                    this.strategies[this.currentStrategyIndex].template_content = this.editor.getValue();
+                    this.strategies[this.currentStrategyIndex]._dirty = true;
+                }
+            },
+            
+            showStrategyModal() {
+                document.getElementById('strategy-modal').classList.add('active');
+            },
+            
+            hideStrategyModal() {
+                document.getElementById('strategy-modal').classList.remove('active');
+            },
+            
+            async saveStrategy() {
+                const platformId = document.getElementById('strategy-platform').value;
+                const method = document.getElementById('new-strategy-method').value;
+                const priority = parseInt(document.getElementById('strategy-priority').value) || 100;
+                
+                if (!platformId) {
+                    alert('Please select a platform');
+                    return;
+                }
+                
+                // Get platform name
+                const platformOption = document.getElementById('strategy-platform').selectedOptions[0];
+                const platformName = platformOption ? platformOption.textContent : 'Unknown';
+                
+                const strategy = {
+                    id: null,  // New strategy
+                    name: `${platformName} ${method}`,
+                    platform: platformId,
+                    platform_name: platformName,
+                    method: method,
+                    priority: priority,
+                    enabled: true,
+                    template_content: this.getTemplateStarter(method),
+                    _dirty: true
+                };
+                
+                this.strategies.push(strategy);
+                this.hideStrategyModal();
+                this.renderStrategies();
+                this.selectStrategy(this.strategies.length - 1);
+                
+                this.setStatus('Strategy created');
+            },
+            
+            getTemplateStarter(method) {
+                switch (method) {
+                    case 'cli_config':
+                        return `! Generated by Task Studio
+! Add your Jinja2 template here
+
+{% for item in items %}
+! Configure {{ item }}
+{% endfor %}
+`;
+                    case 'rest_api':
+                        return `{
+  "action": "configure",
+  "data": {
+    {% for item in items %}
+    "{{ item.name }}": "{{ item.value }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+  }
+}`;
+                    case 'python':
+                        return `# Python implementation
+# Available context: device, config_context, inputs
+
+def execute(context):
+    device = context['device']
+    inputs = context['inputs']
+    
+    # Your logic here
+    commands = []
+    
+    return {
+        'success': True,
+        'commands': commands
+    }
+`;
+                    default:
+                        return '';
+                }
+            },
+            
+            // ═══════════════════════════════════════════════════════════
+            // PREVIEW & RENDERING
+            // ═══════════════════════════════════════════════════════════
+            
+            async searchDevices(query) {
+                const dropdown = document.getElementById('device-dropdown');
+                
+                if (!query || query.length < 2) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                
+                try {
+                    const res = await fetch(`${this.apiRoot}device-search/?q=${encodeURIComponent(query)}&limit=10`);
+                    const data = await res.json();
+                    
+                    if (data.results && data.results.length > 0) {
+                        // Show dropdown with results
+                        dropdown.innerHTML = '';
+                        data.results.forEach(device => {
+                            const item = document.createElement('div');
+                            item.className = 'device-dropdown-item';
+                            item.innerHTML = `
+                                <div class="device-dropdown-name">${device.name}</div>
+                                <div class="device-dropdown-meta">${device.platform || 'Unknown Platform'} • ${device.location || device.role || 'No Location'}</div>
+                            `;
+                            item.addEventListener('click', () => {
+                                this.selectDevice(device);
+                                dropdown.style.display = 'none';
+                            });
+                            dropdown.appendChild(item);
+                        });
+                        dropdown.style.display = 'block';
+                    } else {
+                        dropdown.innerHTML = '<div class="device-dropdown-item" style="color: var(--text-muted);">No devices found</div>';
+                        dropdown.style.display = 'block';
+                    }
+                } catch (err) {
+                    console.error('[TaskStudio] Device search failed:', err);
+                    dropdown.style.display = 'none';
+                }
+            },
+            
+            selectDevice(device) {
+                this.selectedDevice = device;
+                document.getElementById('device-search').value = device.name;
+                this.renderPreview();
+            },
+            
+            async renderPreview() {
+                if (!this.selectedDevice) {
+                    document.getElementById('rendered-output').textContent = 'Select a device to see rendered output...';
+                    return;
+                }
+                
+                if (this.currentStrategyIndex < 0 || !this.strategies[this.currentStrategyIndex]) {
+                    document.getElementById('rendered-output').textContent = 'Select a strategy to see rendered output...';
+                    return;
+                }
+                
+                const strategy = this.strategies[this.currentStrategyIndex];
+                
+                try {
+                    const res = await fetch(`${this.apiRoot}render-preview/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        },
+                        body: JSON.stringify({
+                            template_code: strategy.template_content || '',
+                            device_id: this.selectedDevice.id,
+                            variable_mappings: this.inputs,
+                            context_overrides: {}
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        document.getElementById('rendered-output').textContent = data.rendered_result;
+                        document.getElementById('rendered-output').style.color = 'var(--accent-green)';
+                    } else {
+                        document.getElementById('rendered-output').textContent = `Error: ${data.error}`;
+                        document.getElementById('rendered-output').style.color = 'var(--accent-red)';
+                    }
+                    
+                    // Update context view
+                    this.renderContext(data.resolved_context);
+                    
+                } catch (err) {
+                    document.getElementById('rendered-output').textContent = `Error: ${err.message}`;
+                    document.getElementById('rendered-output').style.color = 'var(--accent-red)';
+                }
+            },
+            
+            renderContext(context) {
+                const container = document.getElementById('context-tree');
+                if (!context) {
+                    container.innerHTML = '<div style="color: var(--text-muted);">No context loaded</div>';
+                    return;
+                }
+                
+                let html = '';
+                
+                if (context.device) {
+                    html += `<div class="context-section">
+                        <div class="context-section-title">Device</div>
+                        ${Object.entries(context.device).map(([k, v]) => `
+                            <div class="context-item">
+                                <span class="context-key">${k}</span>
+                                <span class="context-value">${typeof v === 'object' ? JSON.stringify(v) : v}</span>
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+                
+                if (context.intended) {
+                    html += `<div class="context-section">
+                        <div class="context-section-title">Variables</div>
+                        ${Object.entries(context.intended).map(([k, v]) => `
+                            <div class="context-item">
+                                <span class="context-key">${k}</span>
+                                <span class="context-value">${typeof v === 'object' ? JSON.stringify(v) : v}</span>
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+                
+                container.innerHTML = html || '<div style="color: var(--text-muted);">No context data</div>';
+            },
+            
+            // ═══════════════════════════════════════════════════════════
+            // SAVE & EXPORT
+            // ═══════════════════════════════════════════════════════════
+            
+            async saveTask() {
+                const name = document.getElementById('task-name').value.trim();
+                if (!name) {
+                    alert('Task name is required');
+                    return;
+                }
+                
+                // Sync current editor content
+                this.syncEditorToStrategy();
+                
+                const taskData = {
+                    name: name,
+                    slug: this.taskId && this.task 
+                        ? this.task.slug  // Keep existing slug when editing
+                        : name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
+                    inputs: this.inputs
+                };
+                
+                this.setStatus('Saving...', 'info');
+                
+                try {
+                    // Save or create task
+                    let taskRes;
+                    if (this.taskId) {
+                        taskRes = await fetch(`${this.apiRoot}task-intents/${this.taskId}/`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': this.csrfToken
+                            },
+                            body: JSON.stringify(taskData)
+                        });
+                    } else {
+                        taskRes = await fetch(`${this.apiRoot}task-intents/`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': this.csrfToken
+                            },
+                            body: JSON.stringify(taskData)
+                        });
+                    }
+                    
+                    if (!taskRes.ok) {
+                        const error = await taskRes.json();
+                        throw new Error(JSON.stringify(error));
+                    }
+                    
+                    const savedTask = await taskRes.json();
+                    this.taskId = savedTask.id;
+                    
+                    // Save strategies
+                    for (const strategy of this.strategies) {
+                        if (!strategy._dirty) continue;
+                        
+                        const strategyData = {
+                            task_intent: this.taskId,
+                            name: strategy.name,
+                            platform: strategy.platform,
+                            method: strategy.method,
+                            priority: strategy.priority,
+                            enabled: strategy.enabled,
+                            template_content: strategy.template_content
+                        };
+                        
+                        if (strategy.id) {
+                            await fetch(`${this.apiRoot}task-strategies/${strategy.id}/`, {
+                                method: 'PATCH',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': this.csrfToken
+                                },
+                                body: JSON.stringify(strategyData)
+                            });
+                        } else {
+                            const res = await fetch(`${this.apiRoot}task-strategies/`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': this.csrfToken
+                                },
+                                body: JSON.stringify(strategyData)
+                            });
+                            const saved = await res.json();
+                            strategy.id = saved.id;
+                        }
+                        
+                        strategy._dirty = false;
+                    }
+                    
+                    this.setStatus('Task saved successfully!', 'success');
+                    
+                } catch (err) {
+                    console.error('[TaskStudio] Save failed:', err);
+                    this.setStatus(`Save failed: ${err.message}`, 'error');
+                }
+            },
+            
+            async validateTask() {
+                this.setStatus('Validating...', 'info');
+                
+                try {
+                    const res = await fetch(`${this.apiRoot}validate-task/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        },
+                        body: JSON.stringify({
+                            template_content: this.strategies[this.currentStrategyIndex]?.template_content || '',
+                            variables: this.inputs
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        this.setStatus('✓ Validation passed', 'success');
+                    } else {
+                        this.setStatus('✗ Validation failed - check errors tab', 'error');
+                        document.getElementById('error-list').innerHTML = JSON.stringify(data.results, null, 2);
+                    }
+                } catch (err) {
+                    this.setStatus(`Validation error: ${err.message}`, 'error');
+                }
+            },
+            
+            exportYAML() {
+                const yaml = this.toYAML();
+                
+                // Create download
+                const blob = new Blob([yaml], { type: 'text/yaml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${document.getElementById('task-name').value.toLowerCase().replace(/\s+/g, '-') || 'task'}.yaml`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                this.setStatus('YAML exported');
+            },
+            
+            toYAML() {
+                // Simple YAML serialization
+                const task = {
+                    name: document.getElementById('task-name').value,
+                    slug: document.getElementById('task-name').value.toLowerCase().replace(/\s+/g, '_'),
+                    inputs: this.inputs,
+                    strategies: this.strategies.map(s => ({
+                        name: s.name,
+                        platform: s.platform_name,
+                        method: s.method,
+                        priority: s.priority,
+                        template: s.template_content
+                    }))
+                };
+                
+                return `# Task: ${task.name}
+# Generated by Task Studio v2
+---
+name: "${task.name}"
+slug: ${task.slug}
+
+inputs:
+${task.inputs.map(i => `  - name: ${i.name}
+    label: "${i.label || i.name}"
+    type: ${i.type}
+    required: ${i.required}
+    source: ${i.source}
+    ${i.source_path ? `source_path: ${i.source_path}` : ''}
+    ${i.help ? `help: "${i.help}"` : ''}`).join('\n')}
+
+strategies:
+${task.strategies.map(s => `  - name: "${s.name}"
+    platform: ${s.platform}
+    method: ${s.method}
+    priority: ${s.priority}
+    template: |
+${s.template.split('\n').map(l => '      ' + l).join('\n')}`).join('\n')}
+`;
+            },
+            
+            insertVariable() {
+                if (!this.editor) return;
+                
+                const position = this.editor.getPosition();
+                
+                // Create quick pick of available variables
+                const vars = this.inputs.map(i => i.name);
+                
+                if (vars.length === 0) {
+                    alert('No input variables defined. Add some inputs first!');
+                    return;
+                }
+                
+                const varName = prompt(`Insert variable:\n\nAvailable: ${vars.join(', ')}`);
+                if (varName) {
+                    this.editor.executeEdits('insert-variable', [{
+                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                        text: `{{ ${varName} }}`
+                    }]);
+                }
+            },
+            
+            // ═══════════════════════════════════════════════════════════
+            // DEVICE SEARCH & PREVIEW
+            // ═══════════════════════════════════════════════════════════
+            
+            async searchDevices() {
+                const query = document.getElementById('device-search').value;
+                
+                if (!query || query.length < 2) {
+                    document.getElementById('device-dropdown').style.display = 'none';
+                    return;
+                }
+                
+                try {
+                    // Search devices via Nautobot DCIM API
+                    const res = await fetch(`/api/dcim/devices/?q=${encodeURIComponent(query)}&limit=10`);
+                    const data = await res.json();
+                    
+                    const dropdown = document.getElementById('device-dropdown');
+                    dropdown.innerHTML = '';
+                    
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(device => {
+                            const item = document.createElement('div');
+                            item.className = 'device-dropdown-item';
+                            item.textContent = `${device.name} (${device.device_type?.display || 'Unknown'})`;
+                            item.style.padding = '8px 12px';
+                            item.style.cursor = 'pointer';
+                            item.style.borderBottom = '1px solid var(--border-default)';
+                            item.addEventListener('mouseenter', () => item.style.background = 'var(--bg-subtle)');
+                            item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+                            item.addEventListener('click', () => this.selectDevice(device));
+                            dropdown.appendChild(item);
+                        });
+                        dropdown.style.display = 'block';
+                        dropdown.style.position = 'absolute';
+                        dropdown.style.background = 'var(--bg-surface)';
+                        dropdown.style.border = '1px solid var(--border-default)';
+                        dropdown.style.borderRadius = '4px';
+                        dropdown.style.marginTop = '4px';
+                        dropdown.style.maxHeight = '300px';
+                        dropdown.style.overflowY = 'auto';
+                        dropdown.style.zIndex = '1000';
+                        dropdown.style.width = '100%';
+                    } else {
+                        dropdown.style.display = 'none';
+                    }
+                } catch (err) {
+                    console.error('[TaskStudio] Device search failed:', err);
+                }
+            },
+            
+            async selectDevice(device) {
+                this.selectedDevice = device;
+                document.getElementById('device-search').value = device.name;
+                document.getElementById('device-dropdown').style.display = 'none';
+                
+                // Render preview with selected device
+                await this.renderPreview();
+            },
+            
+            async renderPreview() {
+                if (!this.selectedDevice || this.currentStrategyIndex < 0) {
+                    document.getElementById('rendered-output').textContent = 'Select a device and strategy to see rendered output...';
+                    return;
+                }
+                
+                const strategy = this.strategies[this.currentStrategyIndex];
+                if (!strategy || !strategy.template_content) {
+                    document.getElementById('rendered-output').textContent = 'No template content in current strategy';
+                    return;
+                }
+                
+                try {
+                    this.setStatus('Rendering preview...', 'info');
+                    
+                    // Call the preview API endpoint
+                    const res = await fetch(`${this.apiRoot}preview/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        },
+                        body: JSON.stringify({
+                            template_content: strategy.template_content,
+                            device_id: this.selectedDevice.id,
+                            variables: this.inputs.reduce((acc, input) => {
+                                acc[input.name] = input.default_value || '';
+                                return acc;
+                            }, {})
+                        })
+                    });
+                    
+                    if (!res.ok) {
+                        const error = await res.json();
+                        throw new Error(JSON.stringify(error));
+                    }
+                    
+                    const data = await res.json();
+                    
+                    if (data.rendered_content) {
+                        document.getElementById('rendered-output').textContent = data.rendered_content;
+                        this.setStatus('Preview rendered successfully', 'success');
+                    } else if (data.error) {
+                        document.getElementById('rendered-output').textContent = `Error: ${data.error}`;
+                        document.getElementById('error-list').textContent = data.error;
+                        this.setStatus('Preview rendering failed', 'error');
+                    }
+                    
+                    // Update context tab
+                    if (data.context) {
+                        document.getElementById('context-tree').innerHTML = `<pre>${JSON.stringify(data.context, null, 2)}</pre>`;
+                    }
+                } catch (err) {
+                    console.error('[TaskStudio] Preview render failed:', err);
+                    document.getElementById('rendered-output').textContent = `Error: ${err.message}`;
+                    this.setStatus('Preview rendering failed', 'error');
+                }
+            },
+            
+            syncEditorToStrategy() {
+                if (this.currentStrategyIndex >= 0 && this.editor) {
+                    const strategy = this.strategies[this.currentStrategyIndex];
+                    strategy.template_content = this.editor.getValue();
+                    strategy._dirty = true;
+                }
+            },
+            
+            // ═══════════════════════════════════════════════════════════
+            // UTILITIES
+            // ═══════════════════════════════════════════════════════════
+            
+            setStatus(message, type = 'info') {
+                const bar = document.getElementById('status-bar');
+                const text = document.getElementById('status-text');
+                
+                bar.className = 'status-bar';
+                if (type === 'error') bar.classList.add('error');
+                if (type === 'success') bar.classList.add('success');
+                
+                text.textContent = message;
+            }
+        };
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => TaskStudio.init());
+        {% endverbatim %}
+    </script>
+</body>
+</html>
+

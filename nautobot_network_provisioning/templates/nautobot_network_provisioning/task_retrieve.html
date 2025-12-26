@@ -1,0 +1,137 @@
+{% extends 'generic/object_retrieve.html' %}
+{% load helpers %}
+
+{% block extra_buttons %}
+<a href="{% url 'plugins:nautobot_network_provisioning:task_studio_edit' pk=object.pk %}" class="btn btn-primary">
+    <i class="mdi mdi-pencil-box-outline"></i> Edit in Studio
+</a>
+{{ block.super }}
+{% endblock %}
+
+{% block content_left_page %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Task Details</strong>
+    </div>
+    <table class="table table-hover panel-body attr-table">
+        <tr>
+            <td>Name</td>
+            <td>{{ object.name }}</td>
+        </tr>
+        <tr>
+            <td>Slug</td>
+            <td><code>{{ object.slug }}</code></td>
+        </tr>
+        <tr>
+            <td>Description</td>
+            <td>{{ object.description|default:"—" }}</td>
+        </tr>
+    </table>
+</div>
+
+{% if object.variable_mappings and object.variable_mappings.variables %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Variable Mappings</strong>
+    </div>
+    <table class="table table-hover panel-body">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Path</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for var in object.variable_mappings.variables %}
+            <tr>
+                <td><code>{{ var.name }}</code></td>
+                <td>{{ var.type|default:"string" }}</td>
+                <td>
+                    <span class="label {% if var.source == 'config_context' %}label-success{% elif var.source == 'device_attribute' %}label-primary{% elif var.source == 'graphql' %}label-info{% else %}label-default{% endif %}">
+                        {{ var.source }}
+                    </span>
+                </td>
+                <td><code>{{ var.path|default:"—" }}</code></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if object.input_schema %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Input Schema (Contract)</strong>
+    </div>
+    <div class="panel-body">
+        <pre id="input-schema-display" style="background: #1e293b; color: #f8fafc; padding: 15px; border-radius: 4px; max-height: 300px; overflow: auto;"></pre>
+        {{ object.input_schema|json_script:"input-schema-data" }}
+        <script>
+            (function() {
+                var data = JSON.parse(document.getElementById('input-schema-data').textContent);
+                document.getElementById('input-schema-display').textContent = JSON.stringify(data, null, 2);
+            })();
+        </script>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content_right_page %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Platform Implementations</strong>
+        <span class="badge">{{ strategies|length }}</span>
+    </div>
+    {% if strategies %}
+    <table class="table table-hover panel-body">
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th>Logic Type</th>
+                <th>Priority</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for impl in strategies %}
+            <tr>
+                <td>
+                    <strong>{{ impl.platform.name }}</strong>
+                </td>
+                <td>{{ impl.get_logic_type_display }}</td>
+                <td>{{ impl.priority }}</td>
+                <td>
+                    {% if impl.enabled %}
+                    <span class="label label-success">Enabled</span>
+                    {% else %}
+                    <span class="label label-default">Disabled</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="panel-body text-muted">
+        <i class="mdi mdi-information-outline"></i> No implementations defined yet.
+        <a href="{% url 'plugins:nautobot_network_provisioning:task_studio_edit' pk=object.pk %}">Add one in Studio</a>.
+    </div>
+    {% endif %}
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Quick Actions</strong>
+    </div>
+    <div class="panel-body">
+        <a href="{% url 'plugins:nautobot_network_provisioning:task_studio_edit' pk=object.pk %}" class="btn btn-primary btn-block">
+            <i class="mdi mdi-pencil-box-outline"></i> Open in Task Studio
+        </a>
+    </div>
+</div>
+{% endblock %}
+

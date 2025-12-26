@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load static %}
+
+{# Embedded-friendly launcher page for the Studio Tools drawer #}
+
+{% block content_wrapper %}
+<div style="height: calc(100vh - 60px); overflow: auto; padding: 16px;">
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong><i class="mdi mdi-map-marker-path"></i> Troubleshooting: Network Path Trace</strong>
+        </div>
+        <div class="panel-body">
+            <p class="text-muted">
+                Launch the existing Troubleshooting tool for a Device or a specific Interface.
+                This will redirect into the full Troubleshooting view.
+            </p>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Device</h4>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="mode" value="device">
+                        <div class="form-group">
+                            <label for="device_name">Device name</label>
+                            <input class="form-control" type="text" id="device_name" name="device_name" placeholder="e.g. core-rtr-01" required>
+                        </div>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="mdi mdi-open-in-new"></i> Open Troubleshooting
+                        </button>
+                    </form>
+                </div>
+
+                <div class="col-md-6">
+                    <h4>Interface</h4>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="mode" value="interface">
+                        <div class="form-group">
+                            <label for="iface_device_name">Device name</label>
+                            <input class="form-control" type="text" id="iface_device_name" name="device_name" placeholder="e.g. core-rtr-01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="interface_name">Interface name</label>
+                            <input class="form-control" type="text" id="interface_name" name="interface_name" placeholder="e.g. GigabitEthernet0/0" required>
+                        </div>
+                        <button class="btn btn-default" type="submit">
+                            <i class="mdi mdi-open-in-new"></i> Open Troubleshooting
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <hr>
+            <p class="small text-muted">
+                Tip: You can add more Studio tools by extending the `studio_tools` registry in `nautobot_network_provisioning/views.py`.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

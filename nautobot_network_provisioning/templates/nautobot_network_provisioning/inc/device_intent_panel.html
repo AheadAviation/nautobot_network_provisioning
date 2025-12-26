@@ -1,0 +1,30 @@
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong><i class="mdi mdi-history"></i> Automation History (Flight Recorder)</strong>
+    </div>
+    <div class="panel-body">
+        <ul class="list-group">
+            {% for exec in recent_executions %}
+            <li class="list-group-item">
+                <div class="row">
+                    <div class="col-md-8">
+                        <a href="{% url 'plugins:nautobot_network_provisioning:execution' pk=exec.pk %}">
+                            {{ exec.workflow.name }}
+                        </a>
+                        <br><small class="text-muted">{{ exec.start_time|timesince }} ago</small>
+                    </div>
+                    <div class="col-md-4 text-right">
+                        <span class="label label-{{ exec.status|lower }}">{{ exec.status }}</span>
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-muted">No recent executions.</li>
+            {% endfor %}
+        </ul>
+        <div class="text-center">
+            <a href="{% url 'plugins:nautobot_network_provisioning:execution_list' %}" class="btn btn-xs btn-default">View All</a>
+        </div>
+    </div>
+</div>
+

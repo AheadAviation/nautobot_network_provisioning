@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Network Path Troubleshooting Studio{% endblock %}
+
+{% block content %}
+<div id="troubleshooting-studio-root" style="height: calc(100vh - 200px); width: 100%; overflow: hidden; display: flex;">
+    <div class="studio-loading">
+        <div class="text-center" style="padding: 40px;">
+            <i class="mdi mdi-loading mdi-spin mdi-48px text-primary"></i>
+            <p class="mt-3">Loading Troubleshooting Studio...</p>
+            {% if not network_path_tracing_available %}
+            <div class="alert alert-warning mt-3">
+                <strong>Warning:</strong> Network path tracing module is not available. 
+                Please install the required dependencies.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'nautobot_network_provisioning/css/troubleshooting_studio.css' %}">
+<script src="{% static 'nautobot_network_provisioning/js/troubleshooting_studio.js' %}"></script>
+<script>
+    // Initialize the Troubleshooting Studio application
+    window.TroubleshootingStudio.init({
+        apiRunUrl: "{% url 'plugins:nautobot_network_provisioning:api_troubleshooting_run' %}",
+        // Base URLs - JavaScript will append the UUID
+        apiStatusUrlBase: "/plugins/network-provisioning/api/troubleshooting/status/",
+        apiHistoryUrl: "{% url 'plugins:nautobot_network_provisioning:api_troubleshooting_history' %}",
+        visualizationUrlBase: "/plugins/network-provisioning/troubleshooting/visual/",
+        csrfToken: "{{ csrf_token }}",
+        userPermissions: {{ perms_json|safe }},
+        secretsGroups: [
+            {% for group in secrets_groups %}
+            {
+                id: "{{ group.pk }}",
+                name: "{{ group.name|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        networkPathTracingAvailable: {{ network_path_tracing_available|lower }}
+    });
+</script>
+{% endblock %}
+

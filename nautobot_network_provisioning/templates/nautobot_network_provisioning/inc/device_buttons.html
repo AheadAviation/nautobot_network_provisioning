@@ -1,0 +1,23 @@
+<div class="btn-group">
+    <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <i class="mdi mdi-play"></i> Run Task <span class="caret"></span>
+    </button>
+    <ul class="dropdown-menu">
+        {% for item in applicable_forms %}
+            <li><a href="{% url 'plugins:nautobot_network_provisioning:portal_request_form' slug=item.form.slug %}?{{ item.field_name }}={{ device.pk }}">{{ item.form.name }}</a></li>
+        {% empty %}
+            <li class="disabled"><a>No applicable forms</a></li>
+        {% endfor %}
+        <li role="separator" class="divider"></li>
+        <li><a href="{% url 'plugins:nautobot_network_provisioning:portal' %}">Open Automation Portal</a></li>
+    </ul>
+</div>
+
+<script>
+function openTaskDrawer(devicePk, taskSlug) {
+    // This would trigger the 'Drawer' UI pattern described in 08_ui_design.md
+    console.log("Opening Task Drawer for Device " + devicePk + ", Task " + taskSlug);
+    alert("Task Drawer: Starting " + taskSlug + " for " + devicePk);
+}
+</script>
+

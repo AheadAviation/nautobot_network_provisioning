@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}
+{{ block.super }}
+<style>
+    :root {
+        --nautobot-dark-bg: #0f172a;
+        --nautobot-card-bg: #1e293b;
+        --nautobot-border: #334155;
+        --accent-orange: #f97316;
+        --accent-blue: #3b82f6;
+        --text-bright: #f8fafc;
+        --text-dim: #94a3b8;
+    }
+
+    .workflow-shell {
+        display: grid;
+        grid-template-columns: 60px 300px 1fr;
+        height: 100vh;
+        background: var(--nautobot-dark-bg);
+        color: var(--text-bright);
+        overflow: hidden;
+    }
+
+    /* Sidebar Rail (60px) */
+    .sidebar-rail {
+        background: #0f172a;
+        border-right: 1px solid var(--nautobot-border);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 20px;
+        gap: 20px;
+    }
+
+    .rail-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        color: var(--text-dim);
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 1.25rem;
+    }
+
+    .rail-icon:hover, .rail-icon.active {
+        background: rgba(255,255,255,0.05);
+        color: var(--accent-blue);
+    }
+
+    /* Palette (Column 1) */
+    .workflow-palette {
+        background: #1e293b;
+        border-right: 1px solid var(--nautobot-border);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .palette-header {
+        padding: 16px;
+        border-bottom: 1px solid var(--nautobot-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .palette-header h6 {
+        margin: 0;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-dim);
+        font-weight: 700;
+    }
+
+    /* Canvas (Column 2) */
+    .workflow-canvas-wrapper {
+        display: grid;
+        grid-template-rows: 60px 1fr;
+        background: #0f172a;
+    }
+
+    .canvas-toolbar {
+        background: #1e293b;
+        border-bottom: 1px solid var(--nautobot-border);
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        gap: 10px;
+    }
+
+    .canvas-pane {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        overflow: hidden;
+    }
+
+    .workflow-canvas {
+        background-color: var(--nautobot-dark-bg);
+        background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+        background-size: 30px 30px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .workflow-inspector {
+        background: #1e293b;
+        border-left: 1px solid var(--nautobot-border);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    /* Action Bar */
+    .action-bar {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        padding: 10px 30px;
+        border-radius: 100px;
+        display: flex;
+        gap: 15px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        border: 1px solid #334155;
+        z-index: 1000;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="workflow-shell">
+    <!-- 1. Sidebar Rail (60px) -->
+    <aside class="sidebar-rail">
+        <div class="rail-icon" title="Task Library">
+            <i class="mdi mdi-lightning-bolt"></i>
+        </div>
+        <div class="rail-icon active" title="Workflow Designer">
+            <i class="mdi mdi-vector-arrange-below"></i>
+        </div>
+        <div class="rail-icon" title="Request Forms">
+            <i class="mdi mdi-form-select"></i>
+        </div>
+        <div class="rail-icon mt-auto mb-3" title="Settings">
+            <i class="mdi mdi-cog-outline"></i>
+        </div>
+    </aside>
+
+    <!-- 2. Task Palette (Column 1) -->
+    <aside class="workflow-palette">
+        <div class="palette-header">
+            <h6>Task Bricks</h6>
+            <button class="btn btn-xs btn-link text-dim p-0"><i class="mdi mdi-magnify"></i></button>
+        </div>
+        
+        <div class="p-2 overflow-y-auto">
+            {% for t in task_tree %}
+            <div class="task-brick" draggable="true" data-slug="{{ t.slug }}">
+                <div class="brick-icon"><i class="mdi mdi-lightning-bolt"></i></div>
+                <div>
+                    <b class="d-block small">{{ t.name }}</b>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <!-- Default Bricks -->
+            <div class="task-brick" draggable="true">
+                <div class="brick-icon bg-success"><i class="mdi mdi-play-circle"></i></div>
+                <div>
+                    <b class="d-block small">Start Node</b>
+                    <span class="text-dim italic" style="font-size: 0.65rem;">System</span>
+                </div>
+            </div>
+            <div class="task-brick" draggable="true">
+                <div class="brick-icon bg-danger"><i class="mdi mdi-stop-circle"></i></div>
+                <div>
+                    <b class="d-block small">End Node</b>
+                    <span class="text-dim italic" style="font-size: 0.65rem;">System</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 3. Workflow Canvas Wrapper (Column 2) -->
+    <main class="workflow-canvas-wrapper">
+        <header class="canvas-toolbar">
+            <h5 class="m-0 text-bright">{{ object.name|default:"Onboard New Switch" }}</h5>
+            <span class="badge bg-dark border border-secondary text-dim ms-2">Workflow</span>
+            
+            <div class="ms-auto d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary border-0"><i class="mdi mdi-history"></i></button>
+                <button class="btn btn-primary btn-sm px-3">
+                    <i class="mdi mdi-content-save-outline me-1"></i> Save
+                </button>
+            </div>
+        </header>
+
+        <div class="canvas-pane">
+            <!-- Left Side: Canvas -->
+            <div class="workflow-canvas" id="canvas">
+                <!-- Simulated Nodes -->
+                <div class="node" style="top: 100px; left: 50px;">
+                    <div class="node-header">
+                        <span>Start</span>
+                        <i class="mdi mdi-play-circle text-success"></i>
+                    </div>
+                    <div class="node-body">Entry point for automation.</div>
+                </div>
+
+                <div class="node active" style="top: 100px; left: 300px;">
+                    <div class="node-header">
+                        <span>Enforce NTP</span>
+                        <i class="mdi mdi-lightning-bolt text-warning"></i>
+                    </div>
+                    <div class="node-body">Sets standard NTP servers.</div>
+                </div>
+
+                <svg style="position:absolute; width:100%; height:100%; top:0; left:0; pointer-events:none;">
+                    <line x1="250" y1="135" x2="300" y2="135" stroke="#334155" stroke-width="2" stroke-dasharray="5,5" />
+                </svg>
+            </div>
+
+            <!-- Right Side: Inspector -->
+            <aside class="workflow-inspector">
+                <div class="p-2 border-bottom border-secondary bg-dark-subtle">
+                    <small class="text-uppercase fw-bold text-dim px-2" style="font-size: 0.6rem;">Node Inspector</small>
+                </div>
+                <div class="p-4">
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">Step Name</label>
+                        <input type="text" class="form-control studio-input" value="Enforce NTP">
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">Task Intent</label>
+                        <select class="form-select studio-input">
+                            <option>Set NTP Servers</option>
+                        </select>
+                    </div>
+                    <hr class="border-secondary">
+                    <label class="small text-uppercase fw-bold text-dim mb-3" style="font-size: 0.65rem;">Parameters</label>
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">ntp_server (string)</label>
+                        <input type="text" class="form-control studio-input" value="10.0.0.1">
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+</div>
+{% endblock %}
