@@ -31,10 +31,26 @@ The Nautobot Network Provisioning App transforms Nautobot from a passive Source 
 -   Nautobot 2.0 or higher
 -   Python 3.8 or higher
 
-### Install Package
+### Installation (Private Repository)
 
+Since this app is currently hosted in a private repository, you must install it directly from Git.
+
+#### Prerequisites
+- **Git** must be installed on your system.
+- You must have **access permissions** to the private repository.
+
+#### Method 1: Via SSH (Recommended)
+This is the most secure method. Ensure your SSH key is added to your GitHub account.
 ```bash
-pip install nautobot-network-provisioning
+pip install git+ssh://git@github.com/your-org/nautobot-app-network-provisioning.git
+```
+
+#### Method 2: Via HTTPS (Using a Personal Access Token)
+If you do not have SSH keys configured, you can use a [Personal Access Token (PAT)](https://github.com/settings/tokens):
+1. Create a PAT with `repo` scope.
+2. Use the token in the installation command:
+```bash
+pip install git+https://<YOUR_TOKEN>@github.com/your-org/nautobot-app-network-provisioning.git
 ```
 
 ### Configure Nautobot
