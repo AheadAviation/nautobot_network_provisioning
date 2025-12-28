@@ -1,0 +1,14 @@
+include README.md
+include LICENSE
+include pyproject.toml
+include setup.py
+include requirements.txt
+include CHANGELOG.md
+recursive-include nautobot_network_provisioning *.py
+recursive-include nautobot_network_provisioning/templates *
+recursive-include nautobot_network_provisioning/static *
+recursive-include nautobot_network_provisioning/migrations *
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude *.egg-info
+

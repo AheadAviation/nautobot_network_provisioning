@@ -42,7 +42,7 @@ Since this app is currently hosted in a private repository, you must install it 
 #### Method 1: Via SSH (Recommended)
 This is the most secure method. Ensure your SSH key is added to your GitHub account.
 ```bash
-pip install git+ssh://git@github.com/your-org/nautobot-app-network-provisioning.git
+pip install git+ssh://git@github.com/AheadAviation/nautobot_network_provisioning.git@main
 ```
 
 #### Method 2: Via HTTPS (Using a Personal Access Token)
@@ -50,7 +50,13 @@ If you do not have SSH keys configured, you can use a [Personal Access Token (PA
 1. Create a PAT with `repo` scope.
 2. Use the token in the installation command:
 ```bash
-pip install git+https://<YOUR_TOKEN>@github.com/your-org/nautobot-app-network-provisioning.git
+pip install git+https://<YOUR_TOKEN>@github.com/AheadAviation/nautobot_network_provisioning.git@main
+```
+
+#### Method 3: Via HTTPS (Public Repository)
+If the repository is public:
+```bash
+pip install git+https://github.com/AheadAviation/nautobot_network_provisioning.git@main
 ```
 
 ### Configure Nautobot
@@ -62,6 +68,21 @@ PLUGINS = [
     "nautobot_network_provisioning",
     # ... other plugins
 ]
+
+PLUGINS_CONFIG = {
+    "nautobot_network_provisioning": {
+        "demo_data": False,  # Set to True for demo data
+        "queue_processing_enabled": True,
+        "write_mem_enabled": True,
+        "mac_collection_enabled": True,
+        "history_retention_days": 30,
+        "proxy_worker_enabled": False,
+        "proxy_broker_url": "redis://localhost:6379/0",
+        "proxy_backend_url": "redis://localhost:6379/0",
+        "proxy_queue_name": "proxy_queue",
+        "proxy_task_timeout": 120,
+    },
+}
 ```
 
 ### Run Migrations
@@ -74,6 +95,49 @@ nautobot-server migrate
 
 ```bash
 nautobot-server collectstatic
+```
+
+### Installation with Docker
+
+If you're using Docker, add the app to your `requirements.txt`:
+
+```
+git+https://github.com/AheadAviation/nautobot_network_provisioning.git@main
+```
+
+Or if using a private repository with a token:
+
+```
+git+https://<YOUR_TOKEN>@github.com/AheadAviation/nautobot_network_provisioning.git@main
+```
+
+**Using Build Arguments (Recommended for Private Repos):**
+
+1. Update your `Dockerfile`:
+```dockerfile
+ARG GITHUB_TOKEN
+RUN pip install git+https://${GITHUB_TOKEN}@github.com/AheadAviation/nautobot_network_provisioning.git@main
+```
+
+2. Build with the token:
+```bash
+docker build --build-arg GITHUB_TOKEN=your_token_here -t my-nautobot-image .
+```
+
+3. Using `docker-compose.yml`:
+```yaml
+services:
+  nautobot:
+    build:
+      context: .
+      args:
+        - GITHUB_TOKEN=${GITHUB_TOKEN}
+```
+
+Then rebuild your Docker image:
+```bash
+docker-compose build --no-cache nautobot
+docker-compose up -d
 ```
 
 ## Quick Start

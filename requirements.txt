@@ -1,0 +1,13 @@
+# Core dependencies for nautobot-network-provisioning
+# These are also specified in pyproject.toml, but this file is useful for direct pip install
+
+nautobot>=2.0.0,<3.0.0
+networkx>=3.0
+pyyaml
+jinja2
+jsonschema
+netmiko
+napalm
+requests
+pyvis
+
