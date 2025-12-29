@@ -35,6 +35,9 @@ Homepage = "https://github.com/AheadAviation/nautobot_network_provisioning"
 "Source Code" = "https://github.com/AheadAviation/nautobot_network_provisioning"
 "Issue Tracker" = "https://github.com/AheadAviation/nautobot_network_provisioning/issues"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 include = ["nautobot_network_provisioning*"]
 
