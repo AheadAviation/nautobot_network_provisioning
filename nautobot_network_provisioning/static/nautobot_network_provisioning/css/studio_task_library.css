@@ -1,0 +1,185 @@
+/* 
+ * Studio Layout CSS - 2-Panel Task Library
+ */
+
+/* Hide standard Nautobot UI elements */
+.footer { display: none !important; }
+
+body.studio-mode .container-fluid,
+body.studio-mode .content-wrapper {
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Base Viewport */
+.studio-viewport {
+    height: calc(100vh - 120px) !important;
+    background: #0a0f1a !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex;
+}
+
+/* Main Grid Shell */
+.studio-shell {
+    display: grid !important;
+    grid-template-columns: 300px 1fr !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: #0a0f1a !important;
+    color: #f8fafc !important;
+    overflow: hidden !important;
+}
+
+/* Panel 1: Task List */
+.studio-task-list-panel {
+    background: #0f172a !important;
+    border-right: 1px solid #334155 !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.task-list-header {
+    padding: 15px;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.task-list-items {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.task-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #1e293b;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.task-item:hover {
+    background: #1e293b;
+}
+
+.task-item.active {
+    background: #2563eb;
+    color: white;
+}
+
+/* Panel 2: Task Editor */
+.studio-task-editor-panel {
+    background: #0a0f1a !important;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.editor-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #1e293b;
+}
+
+.editor-section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-bottom: 5px;
+}
+
+.form-control-studio {
+    width: 100%;
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 4px;
+}
+
+.form-control-studio:focus {
+    outline: none;
+    border-color: #2563eb;
+}
+
+.implementation-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-studio {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border: none;
+    font-weight: 600;
+}
+
+.btn-primary-studio {
+    background: #2563eb;
+    color: white;
+}
+
+.btn-secondary-studio {
+    background: #334155;
+    color: #f8fafc;
+}
+
+.btn-danger-studio {
+    background: #991b1b;
+    color: white;
+}
+
+.btn-success-studio {
+    background: #166534;
+    color: white;
+}
+
+/* CodeMirror height for JSON and Template */
+.CodeMirror {
+    height: 300px !important;
+    border-radius: 4px;
+}
+
+/* Modal Styling Overrides */
+.studio-modal .modal-content {
+    background: #1e293b;
+    color: #f8fafc;
+    border: 1px solid #334155;
+}
+
+.studio-modal .modal-header {
+    border-bottom: 1px solid #334155;
+}
+
+.studio-modal .modal-footer {
+    border-top: 1px solid #334155;
+}

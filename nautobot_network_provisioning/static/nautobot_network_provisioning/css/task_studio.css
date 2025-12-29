@@ -1,0 +1,129 @@
+/**
+ * Task Studio - Additional Styles
+ * 
+ * Core styles are inline in the template for faster loading.
+ * This file contains additional/override styles.
+ */
+
+/* Fira Code font for better code editing */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+
+/* Smooth transitions */
+.variable-card,
+.btn-studio,
+.device-search-item {
+    transition: all 0.2s ease;
+}
+
+/* Focus states */
+.variable-name-input:focus,
+.var-path:focus,
+.var-graphql:focus,
+.device-search-input:focus {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+}
+
+/* Scrollbar styling for dark theme */
+.studio-viewport ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.studio-viewport ::-webkit-scrollbar-track {
+    background: var(--studio-bg-dark);
+}
+
+.studio-viewport ::-webkit-scrollbar-thumb {
+    background: var(--studio-border);
+    border-radius: 4px;
+}
+
+.studio-viewport ::-webkit-scrollbar-thumb:hover {
+    background: var(--studio-text-muted);
+}
+
+/* Animation for loading spinner */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .studio-main {
+        grid-template-columns: 280px 1fr 320px !important;
+    }
+}
+
+@media (max-width: 992px) {
+    .studio-main {
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto 1fr auto;
+    }
+    
+    .studio-pane-left,
+    .studio-pane-right {
+        border: none !important;
+        border-bottom: 1px solid var(--studio-border) !important;
+    }
+    
+    .pane-content {
+        max-height: 300px;
+    }
+}
+
+/* CodeMirror overrides for Jinja2 syntax */
+.cm-s-material-ocean .cm-jinja2 {
+    color: #f78c6c;
+}
+
+.cm-s-material-ocean .cm-tag {
+    color: #82aaff;
+}
+
+/* Variable card drag handle (future feature) */
+.variable-card-drag {
+    cursor: grab;
+    opacity: 0.5;
+}
+
+.variable-card-drag:hover {
+    opacity: 1;
+}
+
+.variable-card.dragging {
+    opacity: 0.7;
+    transform: scale(1.02);
+}
+
+/* Tooltip styles */
+[title] {
+    position: relative;
+}
+
+/* Status indicators */
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.status-dot.success { background: var(--studio-success); }
+.status-dot.warning { background: var(--studio-warning); }
+.status-dot.error { background: var(--studio-error); }
+.status-dot.pending { background: var(--studio-text-muted); }
+
+/* JSON syntax highlighting in context inspector */
+.context-json .key { color: #82aaff; }
+.context-json .string { color: #c3e88d; }
+.context-json .number { color: #f78c6c; }
+.context-json .boolean { color: #ff5370; }
+.context-json .null { color: #546e7a; }
+
+
+
+
+
+

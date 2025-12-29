@@ -1,0 +1,434 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Troubleshooting Studio Layout - SPA Island Pattern
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Hide the standard Nautobot Footer on Studio pages */
+.footer {
+    display: none !important;
+}
+
+/* Remove standard padding from the main container */
+.container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+/* Studio Application Root - Full Screen Container */
+#troubleshooting-studio-root {
+    height: calc(100vh - 60px);
+    width: 100%;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    grid-template-rows: auto 1fr;
+    background: #f5f5f5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Zone Layout
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Zone A: Input Form & History (Left Panel) */
+.troubleshooting-zone-a {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    border-right: 1px solid #ddd;
+    overflow-y: auto;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Zone B: Real-time Visualization (Main Stage) */
+.troubleshooting-zone-b {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Form Panel
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.troubleshooting-form-panel {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.troubleshooting-form-panel h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.troubleshooting-form-group {
+    margin-bottom: 15px;
+}
+
+.troubleshooting-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    font-size: 13px;
+    color: #555;
+}
+
+.troubleshooting-form-group input,
+.troubleshooting-form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.troubleshooting-form-group input:focus,
+.troubleshooting-form-group select:focus {
+    outline: none;
+    border-color: #337ab7;
+    box-shadow: 0 0 0 2px rgba(51, 122, 183, 0.1);
+}
+
+.troubleshooting-form-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.troubleshooting-form-group-inline input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.troubleshooting-form-group-inline label {
+    margin: 0;
+    font-weight: normal;
+}
+
+.troubleshooting-run-btn {
+    width: 100%;
+    padding: 10px;
+    background: #337ab7;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.troubleshooting-run-btn:hover {
+    background: #286090;
+}
+
+.troubleshooting-run-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.troubleshooting-run-btn.running {
+    background: #5cb85c;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   History Panel
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.troubleshooting-history-panel {
+    flex: 1;
+    overflow-y: auto;
+    border-top: 1px solid #eee;
+}
+
+.troubleshooting-history-header {
+    padding: 15px 20px;
+    background: #f9f9f9;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.troubleshooting-history-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.troubleshooting-history-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.troubleshooting-history-item:hover {
+    background: #f5f5f5;
+}
+
+.troubleshooting-history-item.active {
+    background: #e7f3ff;
+    border-left: 3px solid #337ab7;
+}
+
+.troubleshooting-history-item-title {
+    font-weight: 500;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.troubleshooting-history-item-meta {
+    font-size: 12px;
+    color: #777;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.troubleshooting-history-item-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.troubleshooting-history-item-status.pending {
+    background: #f0ad4e;
+    color: white;
+}
+
+.troubleshooting-history-item-status.running {
+    background: #5bc0de;
+    color: white;
+}
+
+.troubleshooting-history-item-status.completed {
+    background: #5cb85c;
+    color: white;
+}
+
+.troubleshooting-history-item-status.failed {
+    background: #d9534f;
+    color: white;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Visualization Panel
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.troubleshooting-visualization-header {
+    padding: 15px 20px;
+    background: #f9f9f9;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.troubleshooting-visualization-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #333;
+    margin: 0;
+}
+
+.troubleshooting-visualization-status {
+    font-size: 13px;
+    color: #777;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.troubleshooting-visualization-status .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #337ab7;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.troubleshooting-visualization-body {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.troubleshooting-visualization-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.troubleshooting-visualization-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+}
+
+.troubleshooting-visualization-placeholder i {
+    font-size: 64px;
+    opacity: 0.3;
+    margin-bottom: 20px;
+}
+
+.troubleshooting-visualization-placeholder p {
+    font-size: 16px;
+    margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Live Log Panel
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.troubleshooting-log-panel {
+    height: 250px;
+    border-top: 1px solid #eee;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    padding: 10px;
+}
+
+.troubleshooting-log-entry {
+    padding: 2px 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.troubleshooting-log-entry.info {
+    color: #4fc3f7;
+}
+
+.troubleshooting-log-entry.success {
+    color: #81c784;
+}
+
+.troubleshooting-log-entry.warning {
+    color: #ffb74d;
+}
+
+.troubleshooting-log-entry.error {
+    color: #e57373;
+}
+
+.troubleshooting-log-entry .timestamp {
+    color: #888;
+    margin-right: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Progress Indicator
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.troubleshooting-progress-bar {
+    height: 4px;
+    background: #e0e0e0;
+    position: relative;
+    overflow: hidden;
+}
+
+.troubleshooting-progress-bar-fill {
+    height: 100%;
+    background: #337ab7;
+    transition: width 0.3s ease;
+}
+
+.troubleshooting-progress-bar-fill.indeterminate {
+    width: 30%;
+    animation: indeterminate 1.5s infinite;
+}
+
+@keyframes indeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Alert Messages
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.troubleshooting-alert {
+    padding: 12px 20px;
+    margin: 15px 20px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.troubleshooting-alert.warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #856404;
+}
+
+.troubleshooting-alert.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.troubleshooting-alert.info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Responsive Adjustments
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+    #troubleshooting-studio-root {
+        grid-template-columns: 350px 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    #troubleshooting-studio-root {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+    }
+    
+    .troubleshooting-zone-a {
+        grid-row: 1 / 2;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .troubleshooting-zone-b {
+        grid-row: 2 / 4;
+    }
+    
+    .troubleshooting-history-panel {
+        max-height: 200px;
+    }
+}
+
+

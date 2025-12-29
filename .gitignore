@@ -158,6 +158,8 @@ cython_debug/
 nautobot_config.py
 media/
 static/
+# Exception: Include app static files in the package
+!nautobot_network_provisioning/static/
 
 /AGENT_PROMPT/
 /task-library/
