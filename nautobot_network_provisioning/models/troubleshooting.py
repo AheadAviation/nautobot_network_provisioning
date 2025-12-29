@@ -46,6 +46,13 @@ class TroubleshootingRecord(PrimaryModel):
     result_data = models.JSONField(blank=True, null=True)
     interactive_html = models.TextField(blank=True, help_text="Stored PyVis HTML visualization.")
     
+    # Real-time tracking
+    hops_data = models.JSONField(
+        blank=True, 
+        null=True,
+        help_text="Incremental hop data for real-time visualization during trace execution."
+    )
+    
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(blank=True, null=True)
 

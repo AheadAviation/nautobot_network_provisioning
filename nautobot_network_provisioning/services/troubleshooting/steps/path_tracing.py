@@ -80,6 +80,7 @@ class PathTracingStep:
         settings: NetworkPathSettings,
         next_hop_step: NextHopDiscoveryStep,
         logger: Optional[logging.Logger] = None,
+        hop_callback: Optional[callable] = None,
     ):
         self._data_source = data_source
         self._settings = settings
@@ -94,6 +95,7 @@ class PathTracingStep:
         self._destination_gateway_step: Optional[GatewayDiscoveryStep] = None
         self._node_sequence = 0
         self._source_layer2_hops: List[PathHop] = []
+        self._hop_callback = hop_callback
 
     def run(self, validation: InputValidationResult, gateway: GatewayDiscoveryResult) -> PathTracingResult:
         """Execute the path tracing workflow."""
@@ -238,6 +240,7 @@ class PathTracingStep:
                 details="Reached destination on current device (local route).",
                 extras={},
             )
+            self._notify_hop(hop_entry, path_index=len(current_hops))
             path_hops = current_hops + [hop_entry]
             self._finalize_path(path_hops, path_issues, reached=True)
 
@@ -291,6 +294,7 @@ class PathTracingStep:
                 details=str(exc),
                 extras={},
             )
+            self._notify_hop(hop, path_index=len(current_hops))
             current_hops.append(hop)
             self._record_issue(path_issues, aggregate_issues, f"Next-hop lookup failed: {exc}")
             self._finalize_path(current_hops, path_issues, reached=False)
@@ -306,6 +310,7 @@ class PathTracingStep:
                 details=next_hop_result.details,
                 extras={},
             )
+            self._notify_hop(hop, path_index=len(current_hops))
             current_hops.append(hop)
             message = "Routing blackhole detected: no next hop found."
             self._record_issue(path_issues, aggregate_issues, message)
@@ -341,6 +346,7 @@ class PathTracingStep:
                         extras=extras,
                         hop_type=self._as_layer3_hop_type(hop_type),
                     )
+                    self._notify_hop(hop_entry, path_index=len(branch_hops))
                     branch_hops.append(hop_entry)
                     l2_payloads_for_branch = layer2_payloads
                     layer2_payloads = []
@@ -395,6 +401,7 @@ class PathTracingStep:
                             local_route=True,
                         )
                     if destination_hop:
+                        self._notify_hop(destination_hop, path_index=len(branch_hops))
                         branch_hops.append(destination_hop)
                     self._finalize_path(branch_hops, branch_issues, reached=True)
                     continue
@@ -404,10 +411,11 @@ class PathTracingStep:
                         interface_name=display_interface,
                         next_hop_ip=destination_ip,
                         egress_interface=display_egress,
-                        details=f"Destination within subnet of interface '{egress_interface}'.",
+                        details=f"Destination within subnet of interface '{egress_interface}'.", 
                         extras=extras,
                         hop_type=self._as_layer3_hop_type(hop_type),
                     )
+                    self._notify_hop(hop_entry, path_index=len(branch_hops))
                     branch_hops.append(hop_entry)
                     original_node = graph_source_node_id
                     graph_source_node_id, l2_added_primary = self._apply_layer2_hops(
@@ -463,6 +471,7 @@ class PathTracingStep:
                             details=hop_entry.details,
                         )
                     if destination_hop:
+                        self._notify_hop(destination_hop, path_index=len(branch_hops))
                         branch_hops.append(destination_hop)
                     self._finalize_path(branch_hops, branch_issues, reached=True)
                     continue
@@ -503,6 +512,7 @@ class PathTracingStep:
                 extras=extras,
                 hop_type=self._as_layer3_hop_type(hop_type),
             )
+            self._notify_hop(hop_entry, path_index=len(branch_hops))
 
             next_device_name = next_hop_record.device_name if next_hop_record else None
             next_interface = next_hop_record.interface_name if next_hop_record else egress_interface
@@ -535,6 +545,8 @@ class PathTracingStep:
                     branch_device_nodes,
                 )
                 destination_hop = self._build_destination_hop(destination_ip)
+                if destination_hop:
+                    self._notify_hop(destination_hop, path_index=len(branch_hops))
                 dest_node_id = self._node_id_for_destination(destination_hop.device_name, destination_ip)
                 edge_egress = self._edge_egress_value(branch_hops, destination_hop, display_egress)
                 graph.mark_destination(
@@ -566,6 +578,7 @@ class PathTracingStep:
                         details=next_hop_result.details,
                     )
                 if destination_hop:
+                    self._notify_hop(destination_hop, path_index=len(branch_hops))
                     branch_hops.append(destination_hop)
                 self._finalize_path(branch_hops, branch_issues, reached=True)
                 continue
@@ -1171,6 +1184,7 @@ class PathTracingStep:
             extras={},
             hop_type="layer3",
         )
+        self._notify_hop(hop_entry, path_index=len(branch_hops))
         branch_hops.append(hop_entry)
 
         source_node_id = state.graph_node_id
@@ -1292,6 +1306,7 @@ class PathTracingStep:
                 details=hop_entry.details,
             )
         if destination_hop:
+            self._notify_hop(destination_hop, path_index=len(branch_hops))
             branch_hops.append(destination_hop)
 
         if self._logger:
@@ -1382,6 +1397,7 @@ class PathTracingStep:
                 extras=extras,
                 hop_type="layer2",
             )
+            self._notify_hop(layer2_hop, path_index=len(branch_hops))
             branch_hops.append(layer2_hop)
 
             device_name = layer2_hop.device_name
@@ -1523,6 +1539,25 @@ class PathTracingStep:
                 issues=list(issues),
             )
         )
+    
+    def _notify_hop(self, hop: PathHop, path_index: int = 0) -> None:
+        """Notify callback about a discovered hop."""
+        if self._hop_callback:
+            try:
+                hop_data = {
+                    "device_name": hop.device_name,
+                    "interface_name": hop.interface_name,
+                    "next_hop_ip": hop.next_hop_ip,
+                    "egress_interface": hop.egress_interface,
+                    "details": hop.details,
+                    "hop_type": hop.hop_type,
+                    "extras": hop.extras,
+                    "path_index": path_index,
+                }
+                self._hop_callback(hop_data)
+            except Exception as e:
+                if self._logger:
+                    self._logger.warning(f"Hop callback failed: {e}")
 
     def _new_node_id(self, base: str) -> str:
         """Return a unique node identifier based on ``base``."""

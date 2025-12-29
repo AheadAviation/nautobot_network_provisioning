@@ -26,24 +26,57 @@
 <script src="{% static 'nautobot_network_provisioning/js/troubleshooting_studio.js' %}"></script>
 <script>
     // Initialize the Troubleshooting Studio application
-    window.TroubleshootingStudio.init({
-        apiRunUrl: "{% url 'plugins:nautobot_network_provisioning:api_troubleshooting_run' %}",
-        // Base URLs - JavaScript will append the UUID
-        apiStatusUrlBase: "/plugins/network-provisioning/api/troubleshooting/status/",
-        apiHistoryUrl: "{% url 'plugins:nautobot_network_provisioning:api_troubleshooting_history' %}",
-        visualizationUrlBase: "/plugins/network-provisioning/troubleshooting/visual/",
-        csrfToken: "{{ csrf_token }}",
-        userPermissions: {{ perms_json|safe }},
-        secretsGroups: [
-            {% for group in secrets_groups %}
-            {
-                id: "{{ group.pk }}",
-                name: "{{ group.name|escapejs }}"
-            }{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ],
-        networkPathTracingAvailable: {{ network_path_tracing_available|lower }}
-    });
+    (function() {
+        // Wait for both DOM and the TroubleshootingStudio object to be ready
+        function initializeStudio() {
+            if (typeof window.TroubleshootingStudio === 'undefined') {
+                console.error('TroubleshootingStudio not loaded. Check if troubleshooting_studio.js is loaded correctly.');
+                document.getElementById('troubleshooting-studio-root').innerHTML = 
+                    '<div class="alert alert-danger" style="padding: 40px; text-align: center;">' +
+                    '<h4>Error Loading Troubleshooting Studio</h4>' +
+                    '<p>JavaScript file failed to load. Please check the browser console for errors.</p>' +
+                    '</div>';
+                return;
+            }
+            
+            try {
+                window.TroubleshootingStudio.init({
+                    apiRunUrl: "{% url 'plugins:nautobot_network_provisioning:api_troubleshooting_run' %}",
+                    // Base URLs - JavaScript will append the UUID
+                    apiStatusUrlBase: "/plugins/network-provisioning/api/troubleshooting/status/",
+                    apiHistoryUrl: "{% url 'plugins:nautobot_network_provisioning:api_troubleshooting_history' %}",
+                    visualizationUrlBase: "/plugins/network-provisioning/troubleshooting/visual/",
+                    csrfToken: "{{ csrf_token }}",
+                    userPermissions: {{ perms_json|safe }},
+                    secretsGroups: [
+                        {% for group in secrets_groups %}
+                        {
+                            id: "{{ group.pk }}",
+                            name: "{{ group.name|escapejs }}"
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ],
+                    networkPathTracingAvailable: {{ network_path_tracing_available|lower }}
+                });
+            } catch (error) {
+                console.error('Error initializing TroubleshootingStudio:', error);
+                document.getElementById('troubleshooting-studio-root').innerHTML = 
+                    '<div class="alert alert-danger" style="padding: 40px; text-align: center;">' +
+                    '<h4>Error Initializing Troubleshooting Studio</h4>' +
+                    '<p>' + error.message + '</p>' +
+                    '<p>Please check the browser console for more details.</p>' +
+                    '</div>';
+            }
+        }
+        
+        // Try to initialize immediately if DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeStudio);
+        } else {
+            // DOM is already ready, but wait a tick for the script to load
+            setTimeout(initializeStudio, 100);
+        }
+    })();
 </script>
 {% endblock %}
 

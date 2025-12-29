@@ -347,7 +347,33 @@ class TroubleshootingRunAPIView(View):
             validation_step = InputValidationStep(data_source)
             gateway_step = GatewayDiscoveryStep(data_source, settings.gateway_custom_field)
             next_hop_step = NextHopDiscoveryStep(data_source, settings, logger=logger)
-            path_tracing_step = PathTracingStep(data_source, settings, next_hop_step, logger=logger)
+            
+            # Define hop callback for real-time updates
+            def hop_callback(hop_data):
+                """Update record with incremental hop data."""
+                try:
+                    # Refresh record from DB to avoid race conditions
+                    record.refresh_from_db()
+                    if record.hops_data is None:
+                        record.hops_data = {"hops": []}
+                    if "hops" not in record.hops_data:
+                        record.hops_data["hops"] = []
+                    record.hops_data["hops"].append(hop_data)
+                    record.save(update_fields=["hops_data"])
+                except Exception as e:
+                    logger.warning(f"Failed to update hops_data: {e}")
+            
+            path_tracing_step = PathTracingStep(
+                data_source, 
+                settings, 
+                next_hop_step, 
+                logger=logger,
+                hop_callback=hop_callback
+            )
+            
+            # Initialize hops_data
+            record.hops_data = {"hops": []}
+            record.save(update_fields=["hops_data"])
             
             validation = validation_step.run(settings)
             gateway = gateway_step.run(validation)
@@ -430,6 +456,7 @@ class TroubleshootingStatusAPIView(View):
             "status": record.status.slug if record.status else "unknown",
             "status_display": record.status.name if record.status else "Unknown",
             "result_data": record.result_data or {},
+            "hops_data": record.hops_data or {},
             "source_host": record.source_host,
             "destination_host": record.destination_host,
             "start_time": record.start_time.isoformat() if record.start_time else None,
