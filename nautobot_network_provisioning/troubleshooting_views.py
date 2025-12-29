@@ -31,9 +31,9 @@ except ImportError:
     NETWORK_PATH_TRACING_AVAILABLE = False
 
 
-def get_status(slug):
-    """Get a status object by slug for TroubleshootingRecord."""
-    return Status.objects.get_for_model(TroubleshootingRecord).get(slug=slug)
+def get_status(name):
+    """Get a status object by name for TroubleshootingRecord."""
+    return Status.objects.get_for_model(TroubleshootingRecord).get(name=name)
 
 
 @method_decorator(login_required, name='dispatch')
