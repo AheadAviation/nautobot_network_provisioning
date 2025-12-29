@@ -6,7 +6,7 @@ from django.utils.decorators import method_decorator
 from django.http import JsonResponse, HttpResponse
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device, Interface
-from nautobot.extras.models import Status, SecretsGroup
+from nautobot.extras.models import SecretsGroup
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from .models import TroubleshootingRecord
 from .services.troubleshooting import (
