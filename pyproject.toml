@@ -38,3 +38,10 @@ Homepage = "https://github.com/AheadAviation/nautobot_network_provisioning"
 [tool.setuptools.packages.find]
 include = ["nautobot_network_provisioning*"]
 
+[tool.setuptools.package-data]
+nautobot_network_provisioning = [
+    "templates/**/*",
+    "static/**/*",
+    "migrations/**/*",
+]
+
