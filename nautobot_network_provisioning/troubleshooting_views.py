@@ -31,11 +31,6 @@ except ImportError:
     NETWORK_PATH_TRACING_AVAILABLE = False
 
 
-def get_status(name):
-    """Get a status object by name for TroubleshootingRecord."""
-    return Status.objects.get_for_model(TroubleshootingRecord).get(name=name)
-
-
 @method_decorator(login_required, name='dispatch')
 class StudioTroubleshootingLauncherView(View):
     """
@@ -160,7 +155,7 @@ class TroubleshootingView(View):
             user=request.user,
             object_type=ct,
             object_id=obj.pk,
-            status=get_status("pending"),
+            status="pending",
             source_host=source_host,
             destination_host=destination_host,
         )
@@ -172,7 +167,7 @@ class TroubleshootingView(View):
 
     def _run_trace(self, record, secrets_group):
         """Run the actual path trace logic."""
-        record.status = get_status("running")
+        record.status = "running"
         record.save()
         
         try:
@@ -221,12 +216,12 @@ class TroubleshootingView(View):
                 "paths_count": len(path_result.paths),
             }
             record.interactive_html = html
-            record.status = get_status("completed")
+            record.status = "completed"
             record.end_time = datetime.datetime.now()
             record.save()
             
         except Exception as e:
-            record.status = get_status("failed")
+            record.status = "failed"
             record.result_data = {"error": str(e)}
             record.end_time = datetime.datetime.now()
             record.save()
@@ -287,7 +282,7 @@ class TroubleshootingRunAPIView(View):
         record = TroubleshootingRecord.objects.create(
             operation_type="path_trace",
             user=request.user,
-            status=get_status("pending"),
+            status="pending",
             source_host=source_ip,
             destination_host=destination_ip,
         )
@@ -315,7 +310,7 @@ class TroubleshootingRunAPIView(View):
         """Run the actual path trace logic using the step-based API."""
         logger = logging.getLogger(__name__)
         
-        record.status = get_status("running")
+        record.status = "running"
         record.save()
         
         try:
@@ -415,13 +410,13 @@ class TroubleshootingRunAPIView(View):
             # Save results
             record.result_data = result_data
             record.interactive_html = html
-            record.status = get_status("completed")
+            record.status = "completed"
             record.end_time = datetime.datetime.now()
             record.save()
             
         except Exception as e:
             logger.exception("Path trace failed")
-            record.status = get_status("failed")
+            record.status = "failed"
             record.result_data = {"error": str(e)}
             record.end_time = datetime.datetime.now()
             record.save()
@@ -453,7 +448,7 @@ class TroubleshootingStatusAPIView(View):
         
         return JsonResponse({
             "record_id": str(record.pk),
-            "status": record.status.slug if record.status else "unknown",
+            "status": record.status.name if record.status else "unknown",
             "status_display": record.status.name if record.status else "Unknown",
             "result_data": record.result_data or {},
             "hops_data": record.hops_data or {},
@@ -490,7 +485,7 @@ class TroubleshootingHistoryAPIView(View):
                     "id": str(record.pk),
                     "source_host": record.source_host,
                     "destination_host": record.destination_host,
-                    "status": record.status.slug if record.status else "unknown",
+                    "status": record.status.name if record.status else "unknown",
                     "status_display": record.status.name if record.status else "Unknown",
                     "start_time": record.start_time.isoformat() if record.start_time else None,
                     "end_time": record.end_time.isoformat() if record.end_time else None,
