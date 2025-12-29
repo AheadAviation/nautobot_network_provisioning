@@ -155,10 +155,11 @@ class TroubleshootingView(View):
             user=request.user,
             object_type=ct,
             object_id=obj.pk,
-            status="pending",
             source_host=source_host,
             destination_host=destination_host,
         )
+        record.status = "pending"
+        record.save()
         
         # Execute trace (synchronously for now, should be async in production)
         self._run_trace(record, secrets_group)
@@ -282,10 +283,11 @@ class TroubleshootingRunAPIView(View):
         record = TroubleshootingRecord.objects.create(
             operation_type="path_trace",
             user=request.user,
-            status="pending",
             source_host=source_ip,
             destination_host=destination_ip,
         )
+        record.status = "pending"
+        record.save()
         
         # Run trace asynchronously (for now, we'll run it synchronously)
         # In production, this should be a Celery task or similar
